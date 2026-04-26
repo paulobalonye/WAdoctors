@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Doctor Portal - WAdoctors</title>
+    <link rel="stylesheet" href="/portal/styles.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <div class="topbar">
+        <div class="brand">Doctor Portal</div>
+        <div class="nav">
+          <a href="/portal/index.html">Home</a>
+          <a class="active" href="/portal/doctor.html">Doctor</a>
+          <a href="/portal/admin.html">Admin</a>
+        </div>
+      </div>
+
+      <div class="layout">
+        <div class="panel">
+          <h2>Session</h2>
+          <div class="field">
+            <label for="doctorIdInput">Doctor ID</label>
+            <input id="doctorIdInput" placeholder="Paste doctor UUID" />
+          </div>
+          <div class="btnrow">
+            <button id="saveDoctorSessionBtn">Use Doctor ID</button>
+            <button id="clearDoctorSessionBtn" class="secondary">Clear</button>
+          </div>
+          <div id="doctorStatusBar" class="statusbar">Waiting for doctor session.</div>
+        </div>
+
+        <div class="panel">
+          <h2>Doctor Profile</h2>
+          <div id="doctorProfile" class="muted">No profile loaded.</div>
+        </div>
+
+        <div class="panel">
+          <h2>My Cases</h2>
+          <div class="grid-2">
+            <div class="field">
+              <label for="doctorCaseStatusFilter">Status Filter</label>
+              <select id="doctorCaseStatusFilter">
+                <option value="">All</option>
+                <option value="NEW">NEW</option>
+                <option value="TRIAGING">TRIAGING</option>
+                <option value="ASSIGNED">ASSIGNED</option>
+                <option value="IN_PROGRESS">IN_PROGRESS</option>
+                <option value="COMPLETED">COMPLETED</option>
+                <option value="ESCALATED">ESCALATED</option>
+              </select>
+            </div>
+            <div class="btnrow" style="align-items: end">
+              <button id="refreshDoctorCasesBtn">Refresh Cases</button>
+            </div>
+          </div>
+          <div class="scrollbox">
+            <table>
+              <thead>
+                <tr>
+                  <th>Case</th>
+                  <th>Status</th>
+                  <th>Patient</th>
+                  <th>Urgency</th>
+                  <th>Updated</th>
+                </tr>
+              </thead>
+              <tbody id="doctorCasesTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>Case Thread</h2>
+          <div class="muted" id="selectedDoctorCaseMeta">Select a case to view messages.</div>
+          <div class="btnrow" style="margin-top: 10px">
+            <button id="refreshDoctorMessagesBtn" class="secondary">Refresh Messages</button>
+          </div>
+          <div id="doctorMessagesList" class="message-list" style="margin-top: 10px"></div>
+        </div>
+
+        <div class="panel">
+          <h2>Send Reply</h2>
+          <div class="field">
+            <label for="doctorMessageInput">Message to Patient</label>
+            <textarea id="doctorMessageInput" placeholder="Write response..."></textarea>
+          </div>
+          <div class="btnrow">
+            <button id="sendDoctorMessageBtn">Send Message</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>Close Case</h2>
+          <div class="field">
+            <label for="doctorCloseSummaryInput">Visit Summary</label>
+            <textarea id="doctorCloseSummaryInput" placeholder="Summary sent to patient on close"></textarea>
+          </div>
+          <div class="btnrow">
+            <button id="closeDoctorCaseBtn" class="warn">Close Case</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/portal/js/doctor.js"></script>
+  </body>
+</html>

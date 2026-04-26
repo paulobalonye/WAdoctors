@@ -1,0 +1,205 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PatientKycStatus {
+  PENDING
+  AUTO_APPROVED
+  MANUAL_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum DoctorKycStatus {
+  PENDING
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum SubscriptionPlanType {
+  BASIC
+  PREMIUM
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  PAST_DUE
+  UNPAID
+}
+
+enum CaseStatus {
+  NEW
+  TRIAGING
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+  ESCALATED
+}
+
+enum SenderType {
+  PATIENT
+  DOCTOR
+  AI
+  SYSTEM
+}
+
+enum ChannelPlatform {
+  WHATSAPP
+  WEBEX
+}
+
+enum PhiScope {
+  NONE
+  POSSIBLE
+  PHI
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  VIEW
+}
+
+enum ActorType {
+  PATIENT
+  DOCTOR
+  ADMIN
+  SYSTEM
+}
+
+model Patient {
+  id                    String           @id @default(uuid())
+  whatsappPhone         String           @unique
+  fullName              String
+  dateOfBirth           DateTime?
+  email                 String?          @unique
+  address               String?
+  emergencyContactName  String?
+  emergencyContactPhone String?
+  insuranceProvider     String?
+  idDocumentUrl         String?
+  kycStatus             PatientKycStatus @default(PENDING)
+  kycVerifiedAt         DateTime?
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+  subscriptions         Subscription[]
+  payments              Payment[]
+  triageCases           TriageCase[]
+}
+
+model Doctor {
+  id                     String          @id @default(uuid())
+  email                  String          @unique
+  fullName               String
+  npiNumber              String          @unique
+  medicalLicenseNumber   String?
+  licenseState           String?
+  specialty              String?
+  practiceAddress        String?
+  deaNumber              String?
+  malpracticeInsuranceUrl String?
+  boardCertificationUrl  String?
+  medicalLicenseUrl      String?
+  webexPersonId          String?
+  kycStatus              DoctorKycStatus @default(PENDING)
+  isActive               Boolean         @default(false)
+  createdAt              DateTime        @default(now())
+  triageCases            TriageCase[]
+}
+
+model Subscription {
+  id                   String            @id @default(uuid())
+  patientId            String
+  stripeSubscriptionId String?           @unique
+  stripeCustomerId     String?
+  planType             SubscriptionPlanType
+  status               SubscriptionStatus @default(ACTIVE)
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  consultationsUsed    Int               @default(0)
+  consultationsLimit   Int?
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+  patient              Patient           @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  payments             Payment[]
+  triageCases          TriageCase[]
+}
+
+model Payment {
+  id                    String  @id @default(uuid())
+  patientId             String
+  subscriptionId        String
+  stripePaymentIntentId String?
+  amountCents           Int
+  currency              String  @default("USD")
+  status                String
+  createdAt             DateTime @default(now())
+  patient               Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  subscription          Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+}
+
+model TriageCase {
+  id               String     @id @default(uuid())
+  patientId        String
+  subscriptionId   String?
+  status           CaseStatus @default(NEW)
+  chiefComplaint   String?
+  urgencyScore     Int?
+  aiTranscript     String?
+  aiSummary        String?
+  assignedDoctorId String?
+  webexSpaceId     String?
+  startedAt        DateTime?
+  completedAt      DateTime?
+  createdAt        DateTime   @default(now())
+  patient          Patient    @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  subscription     Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  assignedDoctor   Doctor?    @relation(fields: [assignedDoctorId], references: [id], onDelete: SetNull)
+  messages         Message[]
+}
+
+model Message {
+  id         String          @id @default(uuid())
+  caseId     String
+  senderType SenderType
+  senderId   String?
+  platform   ChannelPlatform
+  phiScope   PhiScope        @default(NONE)
+  content    String?
+  mediaUrl   String?
+  mediaType  String?
+  isRead     Boolean         @default(false)
+  createdAt  DateTime        @default(now())
+  triageCase TriageCase      @relation(fields: [caseId], references: [id], onDelete: Cascade)
+}
+
+model WebhookEvent {
+  id          String   @id @default(uuid())
+  provider    String
+  externalId  String
+  payloadHash String
+  receivedAt  DateTime @default(now())
+
+  @@unique([provider, externalId])
+}
+
+model AuditLog {
+  id        String      @id @default(uuid())
+  tableName String
+  recordId  String
+  action    AuditAction
+  actorId   String
+  actorType ActorType
+  oldValues Json?
+  newValues Json?
+  ipAddress String?
+  createdAt DateTime    @default(now())
+}

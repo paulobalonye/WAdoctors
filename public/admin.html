@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Portal - WAdoctors</title>
+    <link rel="stylesheet" href="/portal/styles.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <div class="topbar">
+        <div class="brand">Admin Portal</div>
+        <div class="nav">
+          <a href="/portal/index.html">Home</a>
+          <a href="/portal/doctor.html">Doctor</a>
+          <a class="active" href="/portal/admin.html">Admin</a>
+        </div>
+      </div>
+
+      <div class="layout-admin">
+        <div class="panel">
+          <h2>Session</h2>
+          <div class="grid-2">
+            <div class="field">
+              <label for="adminIdInput">Admin ID</label>
+              <input id="adminIdInput" placeholder="Admin UUID or identifier" />
+            </div>
+            <div class="btnrow" style="align-items: end">
+              <button id="saveAdminSessionBtn">Use Admin ID</button>
+              <button id="clearAdminSessionBtn" class="secondary">Clear</button>
+            </div>
+          </div>
+          <div id="adminStatusBar" class="statusbar">Waiting for admin session.</div>
+        </div>
+
+        <div class="panel">
+          <h2>Overview</h2>
+          <div id="adminOverviewGrid" class="grid-3"></div>
+        </div>
+
+        <div class="panel">
+          <h2>Doctor Management</h2>
+          <div class="grid-3">
+            <div class="field">
+              <label for="createDoctorEmail">Email</label>
+              <input id="createDoctorEmail" placeholder="doctor@clinic.com" />
+            </div>
+            <div class="field">
+              <label for="createDoctorName">Full Name</label>
+              <input id="createDoctorName" placeholder="Dr. Name" />
+            </div>
+            <div class="field">
+              <label for="createDoctorNpi">NPI</label>
+              <input id="createDoctorNpi" placeholder="NPI number" />
+            </div>
+            <div class="field">
+              <label for="createDoctorState">License State</label>
+              <input id="createDoctorState" maxlength="2" placeholder="OH" />
+            </div>
+            <div class="field">
+              <label for="createDoctorSpecialty">Specialty</label>
+              <input id="createDoctorSpecialty" placeholder="Family Medicine" />
+            </div>
+            <div class="field">
+              <label for="createDoctorWebexPersonId">Webex Person ID (optional)</label>
+              <input id="createDoctorWebexPersonId" placeholder="Webex personId" />
+            </div>
+          </div>
+          <div class="grid-2">
+            <div class="field">
+              <label for="createDoctorKyc">KYC</label>
+              <select id="createDoctorKyc">
+                <option value="PENDING">PENDING</option>
+                <option value="UNDER_REVIEW">UNDER_REVIEW</option>
+                <option value="APPROVED">APPROVED</option>
+                <option value="REJECTED">REJECTED</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="createDoctorActive">Active</label>
+              <select id="createDoctorActive">
+                <option value="false">false</option>
+                <option value="true">true</option>
+              </select>
+            </div>
+          </div>
+          <div class="btnrow">
+            <button id="createDoctorBtn">Create Doctor</button>
+            <button id="refreshDoctorsBtn" class="secondary">Refresh Doctors</button>
+          </div>
+          <div class="scrollbox" style="margin-top: 10px">
+            <table>
+              <thead>
+                <tr>
+                  <th>Doctor</th>
+                  <th>State</th>
+                  <th>KYC</th>
+                  <th>Active</th>
+                  <th>Load</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="adminDoctorsTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>Case Operations</h2>
+          <div class="grid-3">
+            <div class="field">
+              <label for="adminCaseStatusFilter">Status Filter</label>
+              <select id="adminCaseStatusFilter">
+                <option value="">All</option>
+                <option value="NEW">NEW</option>
+                <option value="TRIAGING">TRIAGING</option>
+                <option value="ASSIGNED">ASSIGNED</option>
+                <option value="IN_PROGRESS">IN_PROGRESS</option>
+                <option value="COMPLETED">COMPLETED</option>
+                <option value="ESCALATED">ESCALATED</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="adminCaseLimit">Limit</label>
+              <input id="adminCaseLimit" type="number" min="1" max="200" value="100" />
+            </div>
+            <div class="btnrow" style="align-items: end">
+              <button id="refreshAdminCasesBtn">Refresh Cases</button>
+            </div>
+          </div>
+          <div class="scrollbox">
+            <table>
+              <thead>
+                <tr>
+                  <th>Case</th>
+                  <th>Status</th>
+                  <th>Patient</th>
+                  <th>Doctor</th>
+                  <th>Urgency</th>
+                  <th>Updated</th>
+                </tr>
+              </thead>
+              <tbody id="adminCasesTableBody"></tbody>
+            </table>
+          </div>
+          <div class="grid-3" style="margin-top: 10px">
+            <div class="field">
+              <label for="adminCaseStatusUpdate">Update Status</label>
+              <select id="adminCaseStatusUpdate">
+                <option value="NEW">NEW</option>
+                <option value="TRIAGING">TRIAGING</option>
+                <option value="ASSIGNED">ASSIGNED</option>
+                <option value="IN_PROGRESS">IN_PROGRESS</option>
+                <option value="COMPLETED">COMPLETED</option>
+                <option value="ESCALATED">ESCALATED</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="adminCaseAssignDoctor">Assign Doctor</label>
+              <select id="adminCaseAssignDoctor"></select>
+            </div>
+            <div class="btnrow" style="align-items: end">
+              <button id="adminUpdateCaseStatusBtn">Update Status</button>
+              <button id="adminAssignCaseBtn" class="secondary">Assign</button>
+              <button id="adminUnassignCaseBtn" class="secondary">Unassign</button>
+            </div>
+          </div>
+          <div class="muted" id="adminSelectedCaseMeta" style="margin-top: 8px">
+            Select a case row to manage it.
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>Case Messages</h2>
+          <div class="btnrow">
+            <button id="refreshAdminCaseMessagesBtn" class="secondary">Refresh Messages</button>
+          </div>
+          <div id="adminCaseMessagesList" class="message-list" style="margin-top: 10px"></div>
+        </div>
+
+        <div class="panel">
+          <h2>Webhook Activity</h2>
+          <div class="btnrow">
+            <button id="refreshWebhookEventsBtn" class="secondary">Refresh Webhooks</button>
+          </div>
+          <div class="scrollbox" style="margin-top: 10px">
+            <table>
+              <thead>
+                <tr>
+                  <th>Provider</th>
+                  <th>External ID</th>
+                  <th>Received</th>
+                </tr>
+              </thead>
+              <tbody id="adminWebhookTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/portal/js/admin.js"></script>
+  </body>
+</html>

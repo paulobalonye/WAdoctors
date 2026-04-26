@@ -1,0 +1,299 @@
+:root {
+  color-scheme: light;
+  font-family: "IBM Plex Sans", "Segoe UI", Arial, sans-serif;
+  background: #f4f6f8;
+  color: #17212b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: linear-gradient(180deg, #f7f9fb 0%, #eef3f7 100%);
+  min-height: 100vh;
+}
+
+a {
+  color: #0b5cab;
+  text-decoration: none;
+}
+
+.shell {
+  max-width: 1380px;
+  margin: 0 auto;
+  padding: 18px 20px 30px;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0 18px;
+  border-bottom: 1px solid #d8e0e8;
+}
+
+.brand {
+  font-weight: 700;
+  letter-spacing: 0;
+  font-size: 20px;
+}
+
+.nav {
+  display: flex;
+  gap: 14px;
+}
+
+.nav a {
+  padding: 8px 10px;
+  border: 1px solid #b8c7d8;
+  border-radius: 6px;
+  color: #16314d;
+  font-weight: 600;
+  background: #fff;
+}
+
+.nav a.active {
+  background: #0b5cab;
+  border-color: #0b5cab;
+  color: #fff;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.layout-admin {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.panel {
+  background: #fff;
+  border: 1px solid #d9e2ec;
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.panel h2,
+.panel h3 {
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+
+.muted {
+  color: #5a6b7d;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+label {
+  font-size: 12px;
+  color: #425364;
+  font-weight: 600;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  border: 1px solid #c4d0dc;
+  border-radius: 6px;
+  background: #fff;
+  color: #162538;
+  padding: 9px 10px;
+  font-size: 14px;
+}
+
+textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+
+.btnrow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+button {
+  border: 1px solid #0b5cab;
+  background: #0b5cab;
+  color: #fff;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button.secondary {
+  background: #fff;
+  color: #1c334d;
+  border-color: #b8c6d6;
+}
+
+button.warn {
+  background: #b04936;
+  border-color: #b04936;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.statusbar {
+  margin-top: 10px;
+  border: 1px solid #d9e2ec;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 13px;
+  background: #f7fafc;
+  color: #33475b;
+}
+
+.statusbar.error {
+  border-color: #d49a8f;
+  background: #fdf4f2;
+  color: #7c3223;
+}
+
+.statusbar.success {
+  border-color: #8ec5a6;
+  background: #effbf3;
+  color: #205a34;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.metric {
+  border: 1px solid #d8e2ec;
+  border-radius: 6px;
+  padding: 12px;
+  background: #f9fbfd;
+}
+
+.metric .k {
+  font-size: 12px;
+  color: #607287;
+}
+
+.metric .v {
+  font-size: 22px;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 8px 7px;
+  border-bottom: 1px solid #e6edf5;
+  vertical-align: top;
+}
+
+th {
+  font-size: 12px;
+  color: #516476;
+  background: #f6f9fc;
+}
+
+tbody tr:hover {
+  background: #f7fbff;
+}
+
+.click-row {
+  cursor: pointer;
+}
+
+.click-row.active {
+  background: #e9f3ff;
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid #c4d3e0;
+  background: #f3f8fc;
+  font-size: 12px;
+}
+
+.scrollbox {
+  max-height: 360px;
+  overflow: auto;
+  border: 1px solid #dae3ed;
+  border-radius: 6px;
+}
+
+.message-list {
+  display: grid;
+  gap: 8px;
+  max-height: 360px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.message-item {
+  border: 1px solid #d9e2ec;
+  border-radius: 6px;
+  padding: 8px;
+  background: #fff;
+}
+
+.message-item .meta {
+  font-size: 11px;
+  color: #5e7084;
+  margin-bottom: 4px;
+}
+
+.portal-links {
+  margin-top: 24px;
+  display: grid;
+  gap: 10px;
+}
+
+.portal-links a {
+  border: 1px solid #b9c9d8;
+  border-radius: 6px;
+  padding: 10px 12px;
+  background: #fff;
+  font-weight: 600;
+}
+
+@media (max-width: 1020px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .grid-2,
+  .grid-3 {
+    grid-template-columns: 1fr;
+  }
+}
