@@ -71,6 +71,10 @@ const adminTriageSummaryGrid = byId("adminTriageSummaryGrid");
 const adminTriageSourceBody = byId("adminTriageSourceBody");
 const adminTriageRouteBody = byId("adminTriageRouteBody");
 const adminTriageRedFlagsBody = byId("adminTriageRedFlagsBody");
+const adminTriageEvalState = byId("adminTriageEvalState");
+const adminTriageEvalMessage = byId("adminTriageEvalMessage");
+const evaluateTriageBtn = byId("evaluateTriageBtn");
+const adminTriageEvalResult = byId("adminTriageEvalResult");
 const adminRelayFailedLimit = byId("adminRelayFailedLimit");
 const adminRelayClearGraceSeconds = byId("adminRelayClearGraceSeconds");
 const adminRelayCaseId = byId("adminRelayCaseId");
@@ -89,6 +93,7 @@ const adminRelayFailedJobsBody = byId("adminRelayFailedJobsBody");
 
 adminIdInput.value = adminId;
 adminEmailInput.value = localStorage.getItem(storageKeys.adminEmail) || "";
+adminTriageEvalState.value = "OH";
 
 function parseCaseTriageTranscript(rawValue) {
   if (typeof rawValue !== "string" || !rawValue.trim()) {
@@ -656,6 +661,31 @@ function renderTriageSummary(summary) {
     : `<tr><td colspan="2" class="muted">No red flags recorded.</td></tr>`;
 }
 
+function renderTriageEvaluation(result) {
+  if (!result || !result.triage) {
+    adminTriageEvalResult.textContent = "Triage evaluation unavailable.";
+    return;
+  }
+
+  const triage = result.triage;
+  const confidence = Number.isFinite(Number(triage.confidence))
+    ? `${Math.round(Number(triage.confidence) * 100)}%`
+    : "-";
+  const redFlags = Array.isArray(triage.redFlags) && triage.redFlags.length
+    ? triage.redFlags.join(", ")
+    : "-";
+
+  adminTriageEvalResult.innerHTML = `
+    <span class="badge">Source ${escapeHtml(String(triage.source || "-"))}</span>
+    <span class="badge">Route ${escapeHtml(String(triage.route || "-"))}</span>
+    <span class="badge">Urgency ${escapeHtml(String(triage.urgencyScore ?? "-"))}</span>
+    <span class="badge">Baseline ${escapeHtml(String(triage.baselineUrgency ?? "-"))}</span>
+    <span class="badge">Confidence ${escapeHtml(confidence)}</span>
+    <div class="muted" style="margin-top: 8px">${escapeHtml(String(triage.summary || "-"))}</div>
+    <div class="muted" style="margin-top: 4px">Red flags: ${escapeHtml(redFlags)}</div>
+  `;
+}
+
 function getRelayFailedLimit(fallback = 20, max = 50) {
   const failedLimit = Number.parseInt(adminRelayFailedLimit.value, 10);
   if (!Number.isFinite(failedLimit) || failedLimit < 1) {
@@ -910,6 +940,24 @@ async function loadTriageSummary() {
   renderTriageSummary(data);
 }
 
+async function evaluateTriage() {
+  const messageText = adminTriageEvalMessage.value.trim();
+  if (!messageText) {
+    throw new Error("Sample patient message is required");
+  }
+
+  const patientState = adminTriageEvalState.value.trim().toUpperCase();
+  const data = await apiRequest("/api/v1/admin/triage/evaluate", {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({
+      messageText,
+      ...(patientState ? { patientState } : {})
+    })
+  });
+  renderTriageEvaluation(data);
+}
+
 async function loadRelayHealth() {
   const normalizedFailedLimit = getRelayFailedLimit(20, 50);
 
@@ -1157,6 +1205,9 @@ clearAdminSessionBtn.addEventListener("click", () => {
   adminTriageSourceBody.innerHTML = "";
   adminTriageRouteBody.innerHTML = "";
   adminTriageRedFlagsBody.innerHTML = "";
+  adminTriageEvalResult.textContent = "";
+  adminTriageEvalState.value = "OH";
+  adminTriageEvalMessage.value = "";
   adminRelayHealthGrid.innerHTML = "";
   adminRelayHealthNote.textContent = "";
   adminRelayFailedJobsBody.innerHTML = "";
@@ -1282,6 +1333,15 @@ refreshTriageSummaryBtn.addEventListener("click", async () => {
     setStatus(adminStatusBar, "Triage summary refreshed.", "success");
   } catch (error) {
     setStatus(adminStatusBar, error.message || "Failed to refresh triage summary", "error");
+  }
+});
+
+evaluateTriageBtn.addEventListener("click", async () => {
+  try {
+    await evaluateTriage();
+    setStatus(adminStatusBar, "Triage evaluation complete.", "success");
+  } catch (error) {
+    setStatus(adminStatusBar, error.message || "Failed to evaluate triage", "error");
   }
 });
 

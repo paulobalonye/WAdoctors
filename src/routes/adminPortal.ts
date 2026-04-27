@@ -8,6 +8,7 @@ import {
   createAdminDoctor,
   createAdminUser,
   clearAdminFailedRelayJobs,
+  evaluateAdminTriage,
   getAdminIntegrationStatus,
   getAdminTriageSummary,
   getRelayQueueHealth,
@@ -112,6 +113,10 @@ const clearFailedRelayBodySchema = z.object({
 const injectRelayFailureBodySchema = z.object({
   direction: z.enum(["PATIENT_TO_WEBEX", "DOCTOR_TO_WHATSAPP"]),
   caseId: z.string().min(1).max(128).optional()
+});
+const evaluateTriageBodySchema = z.object({
+  messageText: z.string().min(1).max(4000),
+  patientState: z.string().length(2).optional()
 });
 
 const relayJobNameSchema = z.enum(["PATIENT_TO_WEBEX", "DOCTOR_TO_WHATSAPP"]).optional();
@@ -426,6 +431,24 @@ adminPortalRouter.get("/triage/summary", async (req: AuthedRequest, res: Respons
       limit: parseLimit(req.query.limit, 100)
     });
     res.status(200).json(summary);
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+adminPortalRouter.post("/triage/evaluate", async (req: AuthedRequest, res: Response) => {
+  try {
+    const body = evaluateTriageBodySchema.safeParse(req.body ?? {});
+    if (!body.success) {
+      res.status(400).json({ error: "Invalid body", details: body.error.flatten().fieldErrors });
+      return;
+    }
+
+    const result = await evaluateAdminTriage({
+      messageText: body.data.messageText,
+      patientState: body.data.patientState
+    });
+    res.status(200).json(result);
   } catch (error) {
     handleError(res, error);
   }

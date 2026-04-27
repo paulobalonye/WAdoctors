@@ -4,7 +4,9 @@ import { prisma } from "../../lib/prisma.js";
 import { getRelayQueue } from "../../queues/relayQueue.js";
 import { hashPortalPassword } from "../auth/authService.js";
 import { defaultDoctorAvailability } from "../cases/doctorAvailability.js";
+import { buildWhatsAppWorkflowPreviewWithAI } from "../consultations/whatsappWorkflow.js";
 import { buildCaseTriageView } from "./caseTriageView.js";
+import { triageAIEnabled, triageAIProvider } from "../triage/runtime.js";
 import { buildRelayQueueDisabledSummary, buildRelayQueueHealthSummary } from "./relayHealth.js";
 import { buildIntegrationStatus } from "./integrationStatus.js";
 import {
@@ -621,6 +623,35 @@ export async function getAdminTriageSummary(params: {
       })
     }))
   });
+}
+
+export async function evaluateAdminTriage(params: {
+  messageText: string;
+  patientState?: string;
+}) {
+  const workflow = await buildWhatsAppWorkflowPreviewWithAI({
+    messageText: params.messageText,
+    patientState: (params.patientState || env.LAUNCH_STATE).trim().toUpperCase(),
+    aiEnabled: triageAIEnabled,
+    provider: triageAIProvider
+  });
+
+  return {
+    launchState: env.LAUNCH_STATE,
+    evaluatedState: (params.patientState || env.LAUNCH_STATE).trim().toUpperCase(),
+    aiEnabled: triageAIEnabled,
+    triage: {
+      source: workflow.triageSource,
+      urgencyScore: workflow.urgencyScore,
+      baselineUrgency: workflow.baselineUrgency,
+      route: workflow.route,
+      confidence: workflow.triageConfidence,
+      redFlags: workflow.triageRedFlags,
+      summary: workflow.triageSummary
+    },
+    finalStatus: workflow.finalStatus,
+    transitions: workflow.transitions
+  };
 }
 
 export async function retryAdminRelayFailedJob(jobId: string) {

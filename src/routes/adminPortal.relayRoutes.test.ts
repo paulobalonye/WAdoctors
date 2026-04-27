@@ -145,6 +145,21 @@ describe("admin relay routes", () => {
     });
   });
 
+  it("validates triage evaluation request body", async () => {
+    (env as { NODE_ENV: "development" | "test" | "production" }).NODE_ENV = "test";
+    (env as { ALLOW_DEV_HEADER_AUTH: "true" | "false" }).ALLOW_DEV_HEADER_AUTH = "true";
+
+    const res = await request(app)
+      .post("/api/v1/admin/triage/evaluate")
+      .set(adminHeaders())
+      .send({ messageText: "" })
+      .expect(400);
+
+    expect(res.body).toMatchObject({
+      error: "Invalid body"
+    });
+  });
+
   it("validates triage filters on case list route", async () => {
     (env as { NODE_ENV: "development" | "test" | "production" }).NODE_ENV = "test";
     (env as { ALLOW_DEV_HEADER_AUTH: "true" | "false" }).ALLOW_DEV_HEADER_AUTH = "true";

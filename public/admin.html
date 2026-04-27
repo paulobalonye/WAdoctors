@@ -338,6 +338,20 @@
               </table>
             </div>
           </div>
+          <div class="grid-3" style="margin-top: 10px">
+            <div class="field">
+              <label for="adminTriageEvalState">Evaluate State</label>
+              <input id="adminTriageEvalState" maxlength="2" placeholder="OH" />
+            </div>
+            <div class="btnrow" style="align-items: end">
+              <button id="evaluateTriageBtn" class="secondary">Evaluate Triage</button>
+            </div>
+          </div>
+          <div class="field">
+            <label for="adminTriageEvalMessage">Sample Patient Message</label>
+            <textarea id="adminTriageEvalMessage" placeholder="Type sample patient text for triage simulation"></textarea>
+          </div>
+          <div id="adminTriageEvalResult" class="muted"></div>
         </div>
 
         <div class="panel">

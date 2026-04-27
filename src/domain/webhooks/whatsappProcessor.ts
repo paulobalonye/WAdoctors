@@ -3,7 +3,7 @@ import { env } from "../../config/env.js";
 import { prisma } from "../../lib/prisma.js";
 import { buildWhatsAppWorkflowPreviewWithAI } from "../consultations/whatsappWorkflow.js";
 import { buildCaseTriageStorage } from "../consultations/triageStorage.js";
-import { createOpenAITriageProvider } from "../../integrations/openaiTriageProvider.js";
+import { triageAIEnabled, triageAIProvider } from "../triage/runtime.js";
 import { assignDoctorIfNeeded } from "../cases/assignmentService.js";
 import {
   addCaseMessage,
@@ -15,14 +15,6 @@ import {
 import { ensureCaseWorkspace } from "../cases/workspaceService.js";
 import { dispatchPatientToWebex } from "../messages/relayDispatcher.js";
 import { extractWhatsAppMessages } from "../../webhooks/payloads.js";
-
-const triageAIProvider = createOpenAITriageProvider({
-  apiKey: env.OPENAI_API_KEY,
-  model: env.OPENAI_TRIAGE_MODEL,
-  baseUrl: env.OPENAI_BASE_URL,
-  timeoutMs: env.OPENAI_TRIAGE_TIMEOUT_MS
-});
-const aiTriageEnabled = env.AI_TRIAGE_ENABLED === "true" || Boolean(env.OPENAI_API_KEY?.trim());
 
 export type WhatsAppProcessResult = {
   processedCount: number;
@@ -63,7 +55,7 @@ export async function processWhatsAppWebhookPayload(payload: unknown): Promise<W
       const workflow = await buildWhatsAppWorkflowPreviewWithAI({
         messageText: message.text,
         patientState: env.LAUNCH_STATE,
-        aiEnabled: aiTriageEnabled,
+        aiEnabled: triageAIEnabled,
         provider: triageAIProvider
       });
       const triageStorage = buildCaseTriageStorage({
