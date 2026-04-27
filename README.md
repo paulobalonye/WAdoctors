@@ -46,26 +46,36 @@ pnpm prisma:generate
 pnpm db:up
 ```
 
+Default local ports:
+- PostgreSQL: `127.0.0.1:5433`
+- Redis: `127.0.0.1:6380`
+
 5. Run migrations and seed bootstrap users:
 
 ```bash
-pnpm prisma:migrate --name init
+pnpm prisma:deploy
 pnpm prisma:seed
 ```
 
-6. Start dev server:
+6. Run automated tests:
+
+```bash
+pnpm test
+```
+
+7. Start dev server:
 
 ```bash
 pnpm dev
 ```
 
-7. Optional: run relay worker when `RELAY_DISPATCH_MODE=queue`:
+8. Optional: run relay worker when `RELAY_DISPATCH_MODE=queue`:
 
 ```bash
 pnpm worker:relay
 ```
 
-8. Open portals:
+9. Open portals:
 
 - `http://localhost:3000/portal/index.html`
 - `http://localhost:3000/portal/doctor.html`

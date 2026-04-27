@@ -4,7 +4,7 @@ services:
     container_name: wadoctors-postgres
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      - "5433:5432"
     environment:
       POSTGRES_DB: wadoctors_dev
       POSTGRES_USER: postgres
@@ -17,7 +17,7 @@ services:
     container_name: wadoctors-redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "6380:6379"
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redis_data:/data
