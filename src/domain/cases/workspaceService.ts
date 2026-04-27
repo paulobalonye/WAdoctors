@@ -1,4 +1,5 @@
 import { prisma } from "../../lib/prisma.js";
+import { parseCaseTriageStorage } from "../consultations/triageStorage.js";
 import {
   addWebexRoomMember,
   createWebexRoom,
@@ -15,19 +16,38 @@ function caseTitle(caseId: string): string {
   return `WAdoctors Case ${caseId.slice(0, 8)}`;
 }
 
-function initialCaseSummary(params: {
+export function buildInitialCaseSummary(params: {
   caseId: string;
   patientPhone: string;
   complaint?: string | null;
   urgencyScore?: number | null;
+  aiSummary?: string | null;
+  aiTranscript?: string | null;
 }): string {
-  return [
+  const lines = [
     `New Case Assigned`,
     `Case: ${params.caseId}`,
     `Patient: ${params.patientPhone}`,
     `Complaint: ${params.complaint ?? "Not provided"}`,
     `Urgency Score: ${params.urgencyScore ?? "Unknown"}`
-  ].join("\n");
+  ];
+
+  const triage = parseCaseTriageStorage(params.aiTranscript);
+  if (triage) {
+    lines.push(`Triage Source: ${triage.triageSource}`);
+    lines.push(`Triage Route: ${triage.route}`);
+    lines.push(`Triage Confidence: ${Math.round(triage.triageConfidence * 100)}%`);
+    if (triage.triageRedFlags.length) {
+      lines.push(`Triage Red Flags: ${triage.triageRedFlags.join(", ")}`);
+    }
+    if (triage.triageSummary) {
+      lines.push(`Triage Summary: ${triage.triageSummary}`);
+    }
+  } else if (params.aiSummary?.trim()) {
+    lines.push(`Triage Note: ${params.aiSummary.trim()}`);
+  }
+
+  return lines.join("\n");
 }
 
 export async function ensureCaseWorkspace(caseId: string): Promise<WorkspaceResult> {
@@ -90,11 +110,13 @@ export async function ensureCaseWorkspace(caseId: string): Promise<WorkspaceResu
     });
   }
 
-  const summary = initialCaseSummary({
+  const summary = buildInitialCaseSummary({
     caseId: triageCase.id,
     patientPhone: triageCase.patient.whatsappPhone,
     complaint: triageCase.chiefComplaint,
-    urgencyScore: triageCase.urgencyScore
+    urgencyScore: triageCase.urgencyScore,
+    aiSummary: triageCase.aiSummary,
+    aiTranscript: triageCase.aiTranscript
   });
 
   await sendWebexTextMessage({

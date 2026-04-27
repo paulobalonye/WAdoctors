@@ -174,6 +174,7 @@ Safety guard:
 16. AI-assisted triage scoring path added (OpenAI-backed, feature-flagged, heuristic fallback).
 17. AI triage metadata is persisted on new cases (`aiSummary` + structured `aiTranscript`) and shown in admin/doctor case context.
 18. Admin and doctor case-list payloads now include normalized `triage` objects for source, route, confidence, red flags, and summary.
+19. Webex case-room bootstrap message now includes triage context (source, route, confidence, red flags, summary).
 
 ## Next implementation steps
 
