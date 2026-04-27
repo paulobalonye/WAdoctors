@@ -5,6 +5,7 @@ import { getRelayQueue } from "../../queues/relayQueue.js";
 import { hashPortalPassword } from "../auth/authService.js";
 import { defaultDoctorAvailability } from "../cases/doctorAvailability.js";
 import { buildRelayQueueDisabledSummary, buildRelayQueueHealthSummary } from "./relayHealth.js";
+import { buildIntegrationStatus } from "./integrationStatus.js";
 import {
   clearFailedRelayJobs,
   retryRecentFailedRelayJobsByName,
@@ -127,6 +128,28 @@ export async function getAdminOverview() {
     completedCases,
     casesByStatus
   };
+}
+
+export function getAdminIntegrationStatus() {
+  return buildIntegrationStatus({
+    relayDispatchMode: env.RELAY_DISPATCH_MODE,
+    redisUrl: env.REDIS_URL,
+    whatsapp: {
+      webhookSecret: env.WHATSAPP_WEBHOOK_SECRET,
+      verifyToken: env.WHATSAPP_WEBHOOK_VERIFY_TOKEN,
+      accessToken: env.WHATSAPP_ACCESS_TOKEN,
+      phoneNumberId: env.WHATSAPP_PHONE_NUMBER_ID
+    },
+    webex: {
+      webhookSecret: env.WEBEX_WEBHOOK_SECRET,
+      botAccessToken: env.WEBEX_BOT_ACCESS_TOKEN,
+      botPersonId: env.WEBEX_BOT_PERSON_ID,
+      defaultRoomId: env.WEBEX_DEFAULT_ROOM_ID
+    },
+    stripe: {
+      webhookSecret: env.STRIPE_WEBHOOK_SECRET
+    }
+  });
 }
 
 export async function listAdminCases(params: { status?: CaseStatus; limit: number }) {

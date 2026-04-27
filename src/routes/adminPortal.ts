@@ -7,6 +7,7 @@ import {
   createAdminDoctor,
   createAdminUser,
   clearAdminFailedRelayJobs,
+  getAdminIntegrationStatus,
   getRelayQueueHealth,
   getWebhookSummary,
   getAdminOverview,
@@ -149,6 +150,15 @@ adminPortalRouter.get("/overview", async (_req: AuthedRequest, res: Response) =>
   try {
     const data = await getAdminOverview();
     res.status(200).json(data);
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+adminPortalRouter.get("/integrations/status", (_req: AuthedRequest, res: Response) => {
+  try {
+    const status = getAdminIntegrationStatus();
+    res.status(200).json(status);
   } catch (error) {
     handleError(res, error);
   }

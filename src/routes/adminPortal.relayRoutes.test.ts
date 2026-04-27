@@ -23,6 +23,35 @@ afterEach(() => {
 });
 
 describe("admin relay routes", () => {
+  it("returns integration readiness status", async () => {
+    (env as { NODE_ENV: "development" | "test" | "production" }).NODE_ENV = "test";
+    (env as { ALLOW_DEV_HEADER_AUTH: "true" | "false" }).ALLOW_DEV_HEADER_AUTH = "true";
+
+    const res = await request(app)
+      .get("/api/v1/admin/integrations/status")
+      .set(adminHeaders())
+      .expect(200);
+
+    expect(res.body).toMatchObject({
+      summary: {
+        readyCount: expect.any(Number),
+        total: 4
+      },
+      whatsapp: {
+        ready: expect.any(Boolean),
+        missing: expect.any(Array)
+      },
+      webex: {
+        ready: expect.any(Boolean),
+        missing: expect.any(Array)
+      },
+      relay: {
+        ready: expect.any(Boolean),
+        dispatchMode: expect.any(String)
+      }
+    });
+  });
+
   it("returns structured disabled responses for retry endpoints in inline mode", async () => {
     (env as { NODE_ENV: "development" | "test" | "production" }).NODE_ENV = "test";
     (env as { ALLOW_DEV_HEADER_AUTH: "true" | "false" }).ALLOW_DEV_HEADER_AUTH = "true";

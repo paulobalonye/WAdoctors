@@ -21,6 +21,9 @@ const saveAdminSessionBtn = byId("saveAdminSessionBtn");
 const clearAdminSessionBtn = byId("clearAdminSessionBtn");
 const adminStatusBar = byId("adminStatusBar");
 const adminOverviewGrid = byId("adminOverviewGrid");
+const refreshIntegrationStatusBtn = byId("refreshIntegrationStatusBtn");
+const adminIntegrationSummaryGrid = byId("adminIntegrationSummaryGrid");
+const adminIntegrationStatusBody = byId("adminIntegrationStatusBody");
 
 const createDoctorEmail = byId("createDoctorEmail");
 const createDoctorName = byId("createDoctorName");
@@ -101,6 +104,71 @@ function renderOverview(data) {
           <div class="k">${escapeHtml(k)}</div>
           <div class="v">${escapeHtml(String(v))}</div>
         </div>
+      `;
+    })
+    .join("");
+}
+
+function renderIntegrationStatus(data) {
+  if (!data || !data.summary) {
+    adminIntegrationSummaryGrid.innerHTML = `<div class="muted">Integration status unavailable.</div>`;
+    adminIntegrationStatusBody.innerHTML = `<tr><td colspan="4" class="muted">No integration data.</td></tr>`;
+    return;
+  }
+
+  const summaryCards = [
+    {
+      label: "Integrations Ready",
+      value: `${data.summary.readyCount ?? 0} / ${data.summary.total ?? 0}`,
+      meta: "Current configuration health"
+    },
+    {
+      label: "WhatsApp Bot",
+      value: String(Boolean(data.whatsapp?.ready)),
+      meta: "Inbound + outbound settings"
+    },
+    {
+      label: "Webex Bridge",
+      value: String(Boolean(data.webex?.ready)),
+      meta: "Webhook + bot messaging settings"
+    }
+  ];
+
+  adminIntegrationSummaryGrid.innerHTML = summaryCards
+    .map((card) => {
+      return `
+        <div class="metric">
+          <div class="k">${escapeHtml(card.label)}</div>
+          <div class="v">${escapeHtml(card.value)}</div>
+          <div class="muted">${escapeHtml(card.meta)}</div>
+        </div>
+      `;
+    })
+    .join("");
+
+  const rows = [
+    ["WhatsApp", data.whatsapp],
+    ["Webex", data.webex],
+    ["Stripe", data.stripe],
+    ["Relay Queue", data.relay]
+  ];
+
+  adminIntegrationStatusBody.innerHTML = rows
+    .map(([name, entry]) => {
+      const missing = Array.isArray(entry?.missing) && entry.missing.length
+        ? entry.missing.join(", ")
+        : "-";
+      const notes = Array.isArray(entry?.notes) && entry.notes.length
+        ? entry.notes.join(", ")
+        : "-";
+
+      return `
+        <tr>
+          <td>${escapeHtml(String(name))}</td>
+          <td>${escapeHtml(String(Boolean(entry?.ready)))}</td>
+          <td>${escapeHtml(missing)}</td>
+          <td>${escapeHtml(notes)}</td>
+        </tr>
       `;
     })
     .join("");
@@ -532,6 +600,11 @@ async function loadOverview() {
   renderOverview(data);
 }
 
+async function loadIntegrationStatus() {
+  const data = await apiRequest("/api/v1/admin/integrations/status", { headers: authHeaders() });
+  renderIntegrationStatus(data);
+}
+
 async function loadDoctors() {
   doctorsCache = await apiRequest("/api/v1/admin/doctors", { headers: authHeaders() });
   renderDoctors(doctorsCache);
@@ -747,6 +820,7 @@ async function refreshAll() {
 
   setStatus(adminStatusBar, "Loading admin workspace...");
   await loadOverview();
+  await loadIntegrationStatus();
   await loadDoctors();
   await loadCases();
   await loadCaseMessages();
@@ -790,6 +864,8 @@ clearAdminSessionBtn.addEventListener("click", () => {
   adminIdInput.value = "";
   adminPasswordInput.value = "";
   adminOverviewGrid.innerHTML = "";
+  adminIntegrationSummaryGrid.innerHTML = "";
+  adminIntegrationStatusBody.innerHTML = "";
   adminDoctorsTableBody.innerHTML = "";
   adminCasesTableBody.innerHTML = "";
   adminCaseMessagesList.innerHTML = "";
@@ -827,6 +903,15 @@ refreshDoctorsBtn.addEventListener("click", async () => {
     setStatus(adminStatusBar, "Doctors refreshed.", "success");
   } catch (error) {
     setStatus(adminStatusBar, error.message || "Failed to refresh doctors", "error");
+  }
+});
+
+refreshIntegrationStatusBtn.addEventListener("click", async () => {
+  try {
+    await loadIntegrationStatus();
+    setStatus(adminStatusBar, "Integration status refreshed.", "success");
+  } catch (error) {
+    setStatus(adminStatusBar, error.message || "Failed to refresh integration status", "error");
   }
 });
 

@@ -97,6 +97,7 @@ pnpm worker:relay
 - `POST /api/v1/doctor/cases/:caseId/messages`
 - `POST /api/v1/doctor/cases/:caseId/close`
 - `GET /api/v1/admin/overview`
+- `GET /api/v1/admin/integrations/status`
 - `GET /api/v1/admin/cases`
 - `GET /api/v1/admin/cases/:caseId`
 - `GET /api/v1/admin/cases/:caseId/messages`

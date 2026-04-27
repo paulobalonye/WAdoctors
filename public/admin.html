@@ -53,6 +53,27 @@
         </div>
 
         <div class="panel">
+          <h2>Integration Readiness</h2>
+          <div class="btnrow">
+            <button id="refreshIntegrationStatusBtn" class="secondary">Refresh Integration Status</button>
+          </div>
+          <div id="adminIntegrationSummaryGrid" class="grid-3" style="margin-top: 10px"></div>
+          <div class="scrollbox" style="margin-top: 10px">
+            <table>
+              <thead>
+                <tr>
+                  <th>Integration</th>
+                  <th>Ready</th>
+                  <th>Missing</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody id="adminIntegrationStatusBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel">
           <h2>Doctor Management</h2>
           <div class="grid-3">
             <div class="field">
