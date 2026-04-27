@@ -1,7 +1,10 @@
 import { DoctorKycStatus, Prisma, type CaseStatus } from "@prisma/client";
+import { env } from "../../config/env.js";
 import { prisma } from "../../lib/prisma.js";
+import { getRelayQueue } from "../../queues/relayQueue.js";
 import { hashPortalPassword } from "../auth/authService.js";
 import { defaultDoctorAvailability } from "../cases/doctorAvailability.js";
+import { buildRelayQueueDisabledSummary, buildRelayQueueHealthSummary } from "./relayHealth.js";
 import { buildWebhookSummary } from "./webhookSummary.js";
 
 const ACTIVE_CASE_STATUSES: CaseStatus[] = ["NEW", "TRIAGING", "ASSIGNED", "IN_PROGRESS", "ESCALATED"];
@@ -366,4 +369,72 @@ export async function getWebhookSummary(windowHours: number) {
       count: item._count._all
     }))
   });
+}
+
+export async function getRelayQueueHealth(failedLimit: number) {
+  if (env.RELAY_DISPATCH_MODE !== "queue") {
+    return buildRelayQueueDisabledSummary("Relay queue disabled because dispatch mode is inline");
+  }
+
+  if (!env.REDIS_URL) {
+    return buildRelayQueueDisabledSummary("Relay queue unavailable because REDIS_URL is not configured");
+  }
+
+  const queue = getRelayQueue();
+  if (!queue) {
+    return buildRelayQueueDisabledSummary("Relay queue unavailable");
+  }
+
+  try {
+    const counts = await queue.getJobCounts(
+      "waiting",
+      "active",
+      "delayed",
+      "paused",
+      "failed",
+      "completed"
+    );
+
+    const safeLimit = Math.min(Math.max(failedLimit, 1), 50);
+    const failedJobs = await queue.getJobs(["failed"], 0, safeLimit - 1, false);
+
+    return buildRelayQueueHealthSummary({
+      dispatchMode: env.RELAY_DISPATCH_MODE,
+      redisConfigured: true,
+      queueReachable: true,
+      counts: {
+        waiting: counts.waiting,
+        active: counts.active,
+        delayed: counts.delayed,
+        paused: counts.paused,
+        failed: counts.failed,
+        completed: counts.completed
+      },
+      failedJobs: failedJobs.map((job) => ({
+        id: job.id != null ? String(job.id) : null,
+        name: job.name,
+        failedReason: job.failedReason,
+        attemptsMade: job.attemptsMade,
+        finishedOn: job.finishedOn,
+        timestamp: job.timestamp
+      }))
+    });
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "Unable to inspect relay queue";
+    return buildRelayQueueHealthSummary({
+      dispatchMode: env.RELAY_DISPATCH_MODE,
+      redisConfigured: true,
+      queueReachable: false,
+      reason,
+      counts: {
+        waiting: 0,
+        active: 0,
+        delayed: 0,
+        paused: 0,
+        failed: 0,
+        completed: 0
+      },
+      failedJobs: []
+    });
+  }
 }

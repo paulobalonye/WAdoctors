@@ -111,6 +111,7 @@ pnpm worker:relay
 - `POST /api/v1/admin/admin-users`
 - `GET /api/v1/admin/webhooks`
 - `GET /api/v1/admin/webhooks/summary`
+- `GET /api/v1/admin/relay/health`
 
 ## Portal auth
 

@@ -6,6 +6,7 @@ import {
   assignAdminCaseDoctor,
   createAdminDoctor,
   createAdminUser,
+  getRelayQueueHealth,
   getWebhookSummary,
   getAdminOverview,
   getAdminCase,
@@ -105,6 +106,19 @@ function parseWindowHours(value: unknown, fallback = 24): number {
   }
 
   return Math.min(parsed, 24 * 7);
+}
+
+function parseFailedLimit(value: unknown, fallback = 20): number {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
+  }
+
+  return Math.min(parsed, 50);
 }
 
 function handleError(res: Response, error: unknown): void {
@@ -345,6 +359,15 @@ adminPortalRouter.get("/webhooks/summary", async (req: AuthedRequest, res: Respo
   try {
     const summary = await getWebhookSummary(parseWindowHours(req.query.windowHours, 24));
     res.status(200).json(summary);
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+adminPortalRouter.get("/relay/health", async (req: AuthedRequest, res: Response) => {
+  try {
+    const health = await getRelayQueueHealth(parseFailedLimit(req.query.failedLimit, 20));
+    res.status(200).json(health);
   } catch (error) {
     handleError(res, error);
   }

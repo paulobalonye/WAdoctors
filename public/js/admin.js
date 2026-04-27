@@ -58,6 +58,11 @@ const refreshWebhookSummaryBtn = byId("refreshWebhookSummaryBtn");
 const adminWebhookWindowHours = byId("adminWebhookWindowHours");
 const adminWebhookSummaryGrid = byId("adminWebhookSummaryGrid");
 const adminWebhookTableBody = byId("adminWebhookTableBody");
+const adminRelayFailedLimit = byId("adminRelayFailedLimit");
+const refreshRelayHealthBtn = byId("refreshRelayHealthBtn");
+const adminRelayHealthGrid = byId("adminRelayHealthGrid");
+const adminRelayHealthNote = byId("adminRelayHealthNote");
+const adminRelayFailedJobsBody = byId("adminRelayFailedJobsBody");
 
 adminIdInput.value = adminId;
 adminEmailInput.value = localStorage.getItem(storageKeys.adminEmail) || "";
@@ -387,6 +392,82 @@ function renderWebhookSummary(summary) {
     .join("");
 }
 
+function renderRelayHealth(health) {
+  if (!health || !health.counts) {
+    adminRelayHealthGrid.innerHTML = `<div class="muted">Relay health unavailable.</div>`;
+    adminRelayHealthNote.textContent = "Unable to load relay health.";
+    adminRelayFailedJobsBody.innerHTML = `<tr><td colspan="5" class="muted">No failed relay jobs.</td></tr>`;
+    return;
+  }
+
+  const cards = [
+    {
+      label: "Dispatch Mode",
+      value: String(health.dispatchMode || "-"),
+      meta: "inline or queue"
+    },
+    {
+      label: "Queue Enabled",
+      value: String(Boolean(health.queueEnabled)),
+      meta: "Based on dispatch mode"
+    },
+    {
+      label: "Queue Reachable",
+      value: String(Boolean(health.queueReachable)),
+      meta: health.redisConfigured ? "Redis configured" : "Redis not configured"
+    },
+    {
+      label: "Pending Jobs",
+      value: String(health.counts.totalPending ?? 0),
+      meta: "waiting + active + delayed"
+    },
+    {
+      label: "Failed Jobs",
+      value: String(health.counts.failed ?? 0),
+      meta: "Current failed set"
+    },
+    {
+      label: "Completed Jobs",
+      value: String(health.counts.completed ?? 0),
+      meta: "Current completed set"
+    }
+  ];
+
+  adminRelayHealthGrid.innerHTML = cards
+    .map((card) => {
+      return `
+        <div class="metric">
+          <div class="k">${escapeHtml(card.label)}</div>
+          <div class="v">${escapeHtml(card.value)}</div>
+          <div class="muted">${escapeHtml(card.meta)}</div>
+        </div>
+      `;
+    })
+    .join("");
+
+  adminRelayHealthNote.textContent = health.reason || "Relay queue reachable.";
+
+  const failedJobs = Array.isArray(health.failedRecent) ? health.failedRecent : [];
+  if (!failedJobs.length) {
+    adminRelayFailedJobsBody.innerHTML = `<tr><td colspan="5" class="muted">No failed relay jobs.</td></tr>`;
+    return;
+  }
+
+  adminRelayFailedJobsBody.innerHTML = failedJobs
+    .map((job) => {
+      return `
+        <tr>
+          <td>${escapeHtml(job.jobId || "unknown")}</td>
+          <td>${escapeHtml(job.name || "-")}</td>
+          <td>${escapeHtml(String(job.attemptsMade ?? 0))}</td>
+          <td>${escapeHtml(formatDateTime(job.failedAt))}</td>
+          <td>${escapeHtml(job.failedReason || "-")}</td>
+        </tr>
+      `;
+    })
+    .join("");
+}
+
 async function loginAdmin() {
   const email = adminEmailInput.value.trim().toLowerCase();
   const password = adminPasswordInput.value;
@@ -467,6 +548,18 @@ async function loadWebhookSummary() {
     { headers: authHeaders() }
   );
   renderWebhookSummary(data);
+}
+
+async function loadRelayHealth() {
+  const failedLimit = Number.parseInt(adminRelayFailedLimit.value, 10);
+  const normalizedFailedLimit =
+    Number.isFinite(failedLimit) && failedLimit >= 1 && failedLimit <= 50 ? failedLimit : 20;
+
+  const data = await apiRequest(
+    `/api/v1/admin/relay/health?failedLimit=${encodeURIComponent(String(normalizedFailedLimit))}`,
+    { headers: authHeaders() }
+  );
+  renderRelayHealth(data);
 }
 
 async function createDoctor() {
@@ -551,6 +644,7 @@ async function refreshAll() {
   await loadCaseMessages();
   await loadWebhookSummary();
   await loadWebhookEvents();
+  await loadRelayHealth();
   setStatus(adminStatusBar, adminToken ? "Admin portal authenticated." : "Admin portal synced (dev mode).", "success");
 }
 
@@ -592,6 +686,10 @@ clearAdminSessionBtn.addEventListener("click", () => {
   adminCasesTableBody.innerHTML = "";
   adminCaseMessagesList.innerHTML = "";
   adminWebhookTableBody.innerHTML = "";
+  adminWebhookSummaryGrid.innerHTML = "";
+  adminRelayHealthGrid.innerHTML = "";
+  adminRelayHealthNote.textContent = "";
+  adminRelayFailedJobsBody.innerHTML = "";
   setStatus(adminStatusBar, "Admin session cleared.");
 });
 
@@ -691,6 +789,15 @@ refreshWebhookSummaryBtn.addEventListener("click", async () => {
     setStatus(adminStatusBar, "Webhook summary refreshed.", "success");
   } catch (error) {
     setStatus(adminStatusBar, error.message || "Failed to refresh webhook summary", "error");
+  }
+});
+
+refreshRelayHealthBtn.addEventListener("click", async () => {
+  try {
+    await loadRelayHealth();
+    setStatus(adminStatusBar, "Relay health refreshed.", "success");
+  } catch (error) {
+    setStatus(adminStatusBar, error.message || "Failed to refresh relay health", "error");
   }
 });
 

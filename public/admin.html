@@ -245,6 +245,35 @@
             </table>
           </div>
         </div>
+
+        <div class="panel">
+          <h2>Relay Queue Health</h2>
+          <div class="grid-3">
+            <div class="field">
+              <label for="adminRelayFailedLimit">Failed Jobs (recent)</label>
+              <input id="adminRelayFailedLimit" type="number" min="1" max="50" value="20" />
+            </div>
+            <div class="btnrow" style="align-items: end">
+              <button id="refreshRelayHealthBtn" class="secondary">Refresh Relay Health</button>
+            </div>
+          </div>
+          <div id="adminRelayHealthGrid" class="grid-3" style="margin-top: 10px"></div>
+          <div id="adminRelayHealthNote" class="muted" style="margin-top: 8px"></div>
+          <div class="scrollbox" style="margin-top: 10px">
+            <table>
+              <thead>
+                <tr>
+                  <th>Job ID</th>
+                  <th>Type</th>
+                  <th>Attempts</th>
+                  <th>Failed At</th>
+                  <th>Reason</th>
+                </tr>
+              </thead>
+              <tbody id="adminRelayFailedJobsBody"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
 
