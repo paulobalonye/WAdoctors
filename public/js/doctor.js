@@ -20,6 +20,7 @@ const clearDoctorSessionBtn = byId("clearDoctorSessionBtn");
 const doctorStatusBar = byId("doctorStatusBar");
 const doctorProfile = byId("doctorProfile");
 const doctorCaseStatusFilter = byId("doctorCaseStatusFilter");
+const doctorCaseTriageSourceFilter = byId("doctorCaseTriageSourceFilter");
 const refreshDoctorCasesBtn = byId("refreshDoctorCasesBtn");
 const doctorCasesTableBody = byId("doctorCasesTableBody");
 const selectedDoctorCaseMeta = byId("selectedDoctorCaseMeta");
@@ -82,11 +83,20 @@ function getCaseTriage(item) {
       source,
       route,
       confidence,
-      redFlags
+      redFlags,
+      summary: typeof triage.summary === "string" ? triage.summary.trim() : ""
     };
   }
 
-  return parseCaseTriageTranscript(item?.aiTranscript);
+  const parsed = parseCaseTriageTranscript(item?.aiTranscript);
+  if (!parsed) {
+    return null;
+  }
+
+  return {
+    ...parsed,
+    summary: typeof item?.aiSummary === "string" ? item.aiSummary.trim() : ""
+  };
 }
 
 function authHeaders() {
@@ -114,19 +124,22 @@ function renderDoctorProfile(data) {
 
 function renderCases(cases) {
   if (!cases.length) {
-    doctorCasesTableBody.innerHTML = `<tr><td colspan="5" class="muted">No cases found.</td></tr>`;
+    doctorCasesTableBody.innerHTML = `<tr><td colspan="7" class="muted">No cases found.</td></tr>`;
     return;
   }
 
   doctorCasesTableBody.innerHTML = cases
     .map((item) => {
       const activeClass = item.id === selectedCaseId ? "active" : "";
+      const triage = getCaseTriage(item);
       return `
         <tr class="click-row ${activeClass}" data-case-id="${escapeHtml(item.id)}">
           <td><span class="badge">${escapeHtml(item.id.slice(0, 8))}</span></td>
           <td>${escapeHtml(item.status)}</td>
           <td>${escapeHtml(item.patient?.fullName || item.patient?.whatsappPhone || "-")}</td>
           <td>${escapeHtml(item.urgencyScore ?? "-")}</td>
+          <td>${escapeHtml(triage?.source || "-")}</td>
+          <td>${escapeHtml(triage?.route || "-")}</td>
           <td>${escapeHtml(formatDateTime(item.createdAt))}</td>
         </tr>
       `;
@@ -159,7 +172,7 @@ function updateSelectedCaseMeta() {
   const confidenceBadge = triage && triage.confidence !== null
     ? `${Math.round(triage.confidence * 100)}%`
     : "-";
-  const summaryText = String(selected.aiSummary || "").trim();
+  const summaryText = String(triage?.summary || selected.aiSummary || "").trim();
   const redFlags = triage?.redFlags?.length ? triage.redFlags.join(", ") : "";
 
   selectedDoctorCaseMeta.innerHTML = `
@@ -243,7 +256,16 @@ async function loadCases() {
     headers: authHeaders()
   });
 
-  casesCache = data;
+  const triageSourceFilter = doctorCaseTriageSourceFilter.value;
+  casesCache = Array.isArray(data)
+    ? data.filter((item) => {
+        if (!triageSourceFilter) {
+          return true;
+        }
+        const triage = getCaseTriage(item);
+        return triage?.source === triageSourceFilter;
+      })
+    : [];
   if (selectedCaseId && !casesCache.some((item) => item.id === selectedCaseId)) {
     selectedCaseId = "";
   }
@@ -350,6 +372,7 @@ clearDoctorSessionBtn.addEventListener("click", () => {
   localStorage.removeItem(storageKeys.doctorToken);
   doctorIdInput.value = "";
   doctorPasswordInput.value = "";
+  doctorCaseTriageSourceFilter.value = "";
   doctorProfile.textContent = "No profile loaded.";
   doctorCasesTableBody.innerHTML = "";
   doctorMessagesList.innerHTML = "";
@@ -397,6 +420,14 @@ doctorCaseStatusFilter.addEventListener("change", async () => {
     await loadCases();
   } catch (error) {
     setStatus(doctorStatusBar, error.message || "Failed to apply filter", "error");
+  }
+});
+
+doctorCaseTriageSourceFilter.addEventListener("change", async () => {
+  try {
+    await loadCases();
+  } catch (error) {
+    setStatus(doctorStatusBar, error.message || "Failed to apply triage filter", "error");
   }
 });
 

@@ -177,6 +177,7 @@ Safety guard:
 18. Admin and doctor case-list payloads now include normalized `triage` objects for source, route, confidence, red flags, and summary.
 19. Webex case-room bootstrap message now includes triage context (source, route, confidence, red flags, summary).
 20. Admin triage insights summary endpoint and portal panel for source/route/confidence/red-flag monitoring.
+21. Admin and doctor case tables now show triage source/route, and doctor case list can be filtered by triage source.
 
 ## Next implementation steps
 

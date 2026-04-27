@@ -137,11 +137,20 @@ function getCaseTriage(item) {
       source,
       route,
       confidence,
-      redFlags
+      redFlags,
+      summary: typeof triage.summary === "string" ? triage.summary.trim() : ""
     };
   }
 
-  return parseCaseTriageTranscript(item?.aiTranscript);
+  const parsed = parseCaseTriageTranscript(item?.aiTranscript);
+  if (!parsed) {
+    return null;
+  }
+
+  return {
+    ...parsed,
+    summary: typeof item?.aiSummary === "string" ? item.aiSummary.trim() : ""
+  };
 }
 
 function authHeaders() {
@@ -416,13 +425,14 @@ function renderDoctors(doctors) {
 
 function renderCases(cases) {
   if (!cases.length) {
-    adminCasesTableBody.innerHTML = `<tr><td colspan="6" class="muted">No cases found.</td></tr>`;
+    adminCasesTableBody.innerHTML = `<tr><td colspan="8" class="muted">No cases found.</td></tr>`;
     return;
   }
 
   adminCasesTableBody.innerHTML = cases
     .map((item) => {
       const activeClass = item.id === selectedCaseId ? "active" : "";
+      const triage = getCaseTriage(item);
       return `
         <tr class="click-row ${activeClass}" data-case-id="${escapeHtml(item.id)}" data-case-status="${escapeHtml(item.status)}">
           <td><span class="badge">${escapeHtml(item.id.slice(0, 8))}</span></td>
@@ -430,6 +440,8 @@ function renderCases(cases) {
           <td>${escapeHtml(item.patient?.fullName || item.patient?.whatsappPhone || "-")}</td>
           <td>${escapeHtml(item.assignedDoctor?.fullName || "-")}</td>
           <td>${escapeHtml(item.urgencyScore ?? "-")}</td>
+          <td>${escapeHtml(triage?.source || "-")}</td>
+          <td>${escapeHtml(triage?.route || "-")}</td>
           <td>${escapeHtml(formatDateTime(item.createdAt))}</td>
         </tr>
       `;
@@ -466,7 +478,7 @@ function renderSelectedCaseMeta() {
   const confidenceBadge = triage && triage.confidence !== null
     ? `${Math.round(triage.confidence * 100)}%`
     : "-";
-  const summaryText = String(selected.aiSummary || "").trim();
+  const summaryText = String(triage?.summary || selected.aiSummary || "").trim();
   const redFlags = triage?.redFlags?.length ? triage.redFlags.join(", ") : "";
 
   adminSelectedCaseMeta.innerHTML = `

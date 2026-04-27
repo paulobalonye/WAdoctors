@@ -63,6 +63,14 @@
                 <option value="ESCALATED">ESCALATED</option>
               </select>
             </div>
+            <div class="field">
+              <label for="doctorCaseTriageSourceFilter">Triage Source</label>
+              <select id="doctorCaseTriageSourceFilter">
+                <option value="">All</option>
+                <option value="AI">AI</option>
+                <option value="HEURISTIC">HEURISTIC</option>
+              </select>
+            </div>
             <div class="btnrow" style="align-items: end">
               <button id="refreshDoctorCasesBtn">Refresh Cases</button>
             </div>
@@ -75,6 +83,8 @@
                   <th>Status</th>
                   <th>Patient</th>
                   <th>Urgency</th>
+                  <th>Triage</th>
+                  <th>Route</th>
                   <th>Updated</th>
                 </tr>
               </thead>
