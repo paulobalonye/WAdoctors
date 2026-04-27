@@ -135,6 +135,7 @@ Relay retry request bodies may include optional `caseId` for targeted retries.
 `POST /api/v1/admin/triage/evaluate` accepts `messageText` plus optional `patientState` for simulation.
 `/api/v1/admin/relay/dev/inject-failure` is for non-production queue-mode drills and accepts `direction` + optional `caseId`.
 Queue drill steps are documented in `docs/RELAY_QUEUE_DRILL.md`.
+AI triage drill steps are documented in `docs/AI_TRIAGE_DRILL.md`.
 
 AI triage can be enabled with:
 - `OPENAI_API_KEY=<key>` (auto-enables AI triage)
