@@ -2,6 +2,7 @@ import { DoctorKycStatus, Prisma, type CaseStatus } from "@prisma/client";
 import { prisma } from "../../lib/prisma.js";
 import { hashPortalPassword } from "../auth/authService.js";
 import { defaultDoctorAvailability } from "../cases/doctorAvailability.js";
+import { buildWebhookSummary } from "./webhookSummary.js";
 
 const ACTIVE_CASE_STATUSES: CaseStatus[] = ["NEW", "TRIAGING", "ASSIGNED", "IN_PROGRESS", "ESCALATED"];
 
@@ -314,5 +315,55 @@ export async function listRecentWebhookEvents(limit: number) {
       receivedAt: "desc"
     },
     take: limit
+  });
+}
+
+export async function getWebhookSummary(windowHours: number) {
+  const cutoff = new Date(Date.now() - windowHours * 60 * 60 * 1000);
+
+  const [totalEvents, eventsLastWindow, overallByProviderRaw, windowByProviderRaw] = await Promise.all([
+    prisma.webhookEvent.count(),
+    prisma.webhookEvent.count({
+      where: {
+        receivedAt: {
+          gte: cutoff
+        }
+      }
+    }),
+    prisma.webhookEvent.groupBy({
+      by: ["provider"],
+      _count: {
+        _all: true
+      },
+      _max: {
+        receivedAt: true
+      }
+    }),
+    prisma.webhookEvent.groupBy({
+      by: ["provider"],
+      where: {
+        receivedAt: {
+          gte: cutoff
+        }
+      },
+      _count: {
+        _all: true
+      }
+    })
+  ]);
+
+  return buildWebhookSummary({
+    windowHours,
+    totalEvents,
+    eventsLastWindow,
+    overallByProvider: overallByProviderRaw.map((item) => ({
+      provider: item.provider,
+      count: item._count._all,
+      lastReceivedAt: item._max.receivedAt
+    })),
+    windowByProvider: windowByProviderRaw.map((item) => ({
+      provider: item.provider,
+      count: item._count._all
+    }))
   });
 }

@@ -54,6 +54,9 @@ const refreshAdminCaseMessagesBtn = byId("refreshAdminCaseMessagesBtn");
 const adminCaseMessagesList = byId("adminCaseMessagesList");
 
 const refreshWebhookEventsBtn = byId("refreshWebhookEventsBtn");
+const refreshWebhookSummaryBtn = byId("refreshWebhookSummaryBtn");
+const adminWebhookWindowHours = byId("adminWebhookWindowHours");
+const adminWebhookSummaryGrid = byId("adminWebhookSummaryGrid");
 const adminWebhookTableBody = byId("adminWebhookTableBody");
 
 adminIdInput.value = adminId;
@@ -340,6 +343,50 @@ function renderWebhookEvents(events) {
     .join("");
 }
 
+function renderWebhookSummary(summary) {
+  if (!summary || !Array.isArray(summary.providers)) {
+    adminWebhookSummaryGrid.innerHTML = `<div class="muted">Webhook summary unavailable.</div>`;
+    return;
+  }
+
+  const cards = [
+    {
+      label: "Total Webhook Events",
+      value: String(summary.totalEvents ?? 0),
+      meta: "All time"
+    },
+    {
+      label: `Events Last ${summary.windowHours ?? 24}h`,
+      value: String(summary.eventsLastWindow ?? 0),
+      meta: "Rolling window"
+    },
+    {
+      label: "Providers",
+      value: String(summary.providers.length),
+      meta: "Distinct sources"
+    },
+    ...summary.providers.map((item) => ({
+      label: item.provider.toUpperCase(),
+      value: `${item.eventsLastWindow} / ${item.totalEvents}`,
+      meta: item.lastReceivedAt
+        ? `Last: ${formatDateTime(item.lastReceivedAt)}`
+        : "Last: -"
+    }))
+  ];
+
+  adminWebhookSummaryGrid.innerHTML = cards
+    .map((card) => {
+      return `
+        <div class="metric">
+          <div class="k">${escapeHtml(card.label)}</div>
+          <div class="v">${escapeHtml(card.value)}</div>
+          <div class="muted">${escapeHtml(card.meta)}</div>
+        </div>
+      `;
+    })
+    .join("");
+}
+
 async function loginAdmin() {
   const email = adminEmailInput.value.trim().toLowerCase();
   const password = adminPasswordInput.value;
@@ -408,6 +455,18 @@ async function loadCaseMessages() {
 async function loadWebhookEvents() {
   const data = await apiRequest("/api/v1/admin/webhooks?limit=50", { headers: authHeaders() });
   renderWebhookEvents(data);
+}
+
+async function loadWebhookSummary() {
+  const windowHours = Number.parseInt(adminWebhookWindowHours.value, 10);
+  const normalizedWindowHours =
+    Number.isFinite(windowHours) && windowHours >= 1 && windowHours <= 168 ? windowHours : 24;
+
+  const data = await apiRequest(
+    `/api/v1/admin/webhooks/summary?windowHours=${encodeURIComponent(String(normalizedWindowHours))}`,
+    { headers: authHeaders() }
+  );
+  renderWebhookSummary(data);
 }
 
 async function createDoctor() {
@@ -490,6 +549,7 @@ async function refreshAll() {
   await loadDoctors();
   await loadCases();
   await loadCaseMessages();
+  await loadWebhookSummary();
   await loadWebhookEvents();
   setStatus(adminStatusBar, adminToken ? "Admin portal authenticated." : "Admin portal synced (dev mode).", "success");
 }
@@ -622,6 +682,15 @@ refreshWebhookEventsBtn.addEventListener("click", async () => {
     setStatus(adminStatusBar, "Webhook log refreshed.", "success");
   } catch (error) {
     setStatus(adminStatusBar, error.message || "Failed to refresh webhook log", "error");
+  }
+});
+
+refreshWebhookSummaryBtn.addEventListener("click", async () => {
+  try {
+    await loadWebhookSummary();
+    setStatus(adminStatusBar, "Webhook summary refreshed.", "success");
+  } catch (error) {
+    setStatus(adminStatusBar, error.message || "Failed to refresh webhook summary", "error");
   }
 });
 

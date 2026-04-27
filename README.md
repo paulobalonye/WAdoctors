@@ -110,6 +110,7 @@ pnpm worker:relay
 - `PATCH /api/v1/admin/doctors/:doctorId/schedule`
 - `POST /api/v1/admin/admin-users`
 - `GET /api/v1/admin/webhooks`
+- `GET /api/v1/admin/webhooks/summary`
 
 ## Portal auth
 
