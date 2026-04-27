@@ -63,6 +63,7 @@ const adminRelayClearGraceSeconds = byId("adminRelayClearGraceSeconds");
 const refreshRelayHealthBtn = byId("refreshRelayHealthBtn");
 const retryRecentRelayFailedBtn = byId("retryRecentRelayFailedBtn");
 const retryWebexRelayFailedBtn = byId("retryWebexRelayFailedBtn");
+const retryWhatsAppRelayFailedBtn = byId("retryWhatsAppRelayFailedBtn");
 const clearRelayFailedBtn = byId("clearRelayFailedBtn");
 const adminRelayHealthGrid = byId("adminRelayHealthGrid");
 const adminRelayHealthNote = byId("adminRelayHealthNote");
@@ -629,6 +630,20 @@ async function retryRecentWebexRelayFailedJobs() {
   });
 }
 
+async function retryRecentWhatsAppRelayFailedJobs() {
+  const failedLimit = Number.parseInt(adminRelayFailedLimit.value, 10);
+  const normalizedFailedLimit =
+    Number.isFinite(failedLimit) && failedLimit >= 1 && failedLimit <= 50 ? failedLimit : 20;
+
+  return apiRequest("/api/v1/admin/relay/failed/retry-whatsapp", {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({
+      limit: normalizedFailedLimit
+    })
+  });
+}
+
 async function clearRelayFailedJobs() {
   const failedLimit = Number.parseInt(adminRelayFailedLimit.value, 10);
   const normalizedFailedLimit =
@@ -916,6 +931,22 @@ retryWebexRelayFailedBtn.addEventListener("click", async () => {
     );
   } catch (error) {
     setStatus(adminStatusBar, error.message || "Failed to retry Webex relay jobs", "error");
+  }
+});
+
+retryWhatsAppRelayFailedBtn.addEventListener("click", async () => {
+  try {
+    const result = await retryRecentWhatsAppRelayFailedJobs();
+    await loadRelayHealth();
+    setStatus(
+      adminStatusBar,
+      result.ok
+        ? `Retried ${result.retried ?? 0} WhatsApp relay jobs (${result.failed ?? 0} failed).`
+        : result.reason || `Retried ${result.retried ?? 0} WhatsApp relay jobs (${result.failed ?? 0} failed).`,
+      result.ok ? "success" : "error"
+    );
+  } catch (error) {
+    setStatus(adminStatusBar, error.message || "Failed to retry WhatsApp relay jobs", "error");
   }
 });
 

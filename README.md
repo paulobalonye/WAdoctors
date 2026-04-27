@@ -115,6 +115,7 @@ pnpm worker:relay
 - `POST /api/v1/admin/relay/failed/:jobId/retry`
 - `POST /api/v1/admin/relay/failed/retry`
 - `POST /api/v1/admin/relay/failed/retry-webex`
+- `POST /api/v1/admin/relay/failed/retry-whatsapp`
 - `POST /api/v1/admin/relay/failed/clear`
 
 ## Portal auth

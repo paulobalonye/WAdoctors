@@ -567,6 +567,33 @@ export async function retryAdminRecentWebexFailedRelayJobs(limit: number) {
   };
 }
 
+export async function retryAdminRecentWhatsAppFailedRelayJobs(limit: number) {
+  const access = getRelayQueueAccess();
+  if ("reason" in access) {
+    return {
+      ok: false,
+      requestedLimit: Math.min(Math.max(limit, 1), 50),
+      examined: 0,
+      matched: 0,
+      retried: 0,
+      failed: 0,
+      failures: [] as Array<{ jobId: string; reason: string }>,
+      reason: access.reason
+    };
+  }
+
+  const adapter = buildRelayQueueAdapter(access.queue);
+  const result = await retryRecentFailedRelayJobsByName(adapter, {
+    limit,
+    name: "DOCTOR_TO_WHATSAPP"
+  });
+
+  return {
+    ...result,
+    reason: result.ok ? undefined : result.failures[0]?.reason
+  };
+}
+
 export async function clearAdminFailedRelayJobs(params: { limit: number; graceSeconds: number }) {
   const access = getRelayQueueAccess();
   if ("reason" in access) {
