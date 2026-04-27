@@ -1,28 +1,22 @@
 import { Router, type Response } from "express";
-import { z } from "zod";
 import { type AuthedRequest, devAuthMiddleware } from "../auth/roles.js";
 import { getPortalUserByRole, loginPortalUser } from "../domain/auth/authService.js";
-
-const loginBodySchema = z.object({
-  role: z.enum(["ADMIN", "DOCTOR"]),
-  email: z.string().email(),
-  password: z.string().min(1)
-});
+import { parsePortalLoginBody } from "../domain/auth/loginPayload.js";
 
 export const authRouter = Router();
 
 authRouter.post("/login", async (req, res) => {
+  let loginPayload: { role: "ADMIN" | "DOCTOR"; email: string; password: string };
   try {
-    const parsed = loginBodySchema.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({
-        error: "Invalid login payload",
-        details: parsed.error.flatten().fieldErrors
-      });
-      return;
-    }
+    loginPayload = parsePortalLoginBody(req.body);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Invalid login payload";
+    res.status(400).json({ error: message });
+    return;
+  }
 
-    const result = await loginPortalUser(parsed.data);
+  try {
+    const result = await loginPortalUser(loginPayload);
     res.status(200).json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Login failed";

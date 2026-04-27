@@ -6,6 +6,43 @@ export type ParsedWhatsAppMessage = {
   timestamp?: string;
 };
 
+function extractWhatsAppChangeValues(payload: unknown): Array<Record<string, unknown>> {
+  if (!payload || typeof payload !== "object") {
+    return [];
+  }
+
+  const entries = (payload as Record<string, unknown>).entry;
+  if (!Array.isArray(entries) || entries.length === 0) {
+    return [];
+  }
+
+  const values: Array<Record<string, unknown>> = [];
+
+  for (const entry of entries) {
+    if (!entry || typeof entry !== "object") {
+      continue;
+    }
+
+    const changes = (entry as Record<string, unknown>).changes;
+    if (!Array.isArray(changes) || changes.length === 0) {
+      continue;
+    }
+
+    for (const change of changes) {
+      if (!change || typeof change !== "object") {
+        continue;
+      }
+
+      const value = (change as Record<string, unknown>).value;
+      if (value && typeof value === "object") {
+        values.push(value as Record<string, unknown>);
+      }
+    }
+  }
+
+  return values;
+}
+
 function getStringFromObject(value: unknown, key: string): string | undefined {
   if (!value || typeof value !== "object") {
     return undefined;
@@ -21,102 +58,58 @@ export function extractWhatsAppExternalId(payload: unknown): string | undefined 
     return messages[0].id;
   }
 
-  if (!payload || typeof payload !== "object") {
-    return undefined;
-  }
-
-  const entries = (payload as Record<string, unknown>).entry;
-  if (!Array.isArray(entries) || entries.length === 0) {
-    return undefined;
-  }
-
-  const firstEntry = entries[0];
-  if (!firstEntry || typeof firstEntry !== "object") {
-    return undefined;
-  }
-
-  const changes = (firstEntry as Record<string, unknown>).changes;
-  if (!Array.isArray(changes) || changes.length === 0) {
-    return undefined;
-  }
-
-  const firstChange = changes[0];
-  if (!firstChange || typeof firstChange !== "object") {
-    return undefined;
-  }
-
-  const value = (firstChange as Record<string, unknown>).value;
-  if (!value || typeof value !== "object") {
-    return undefined;
-  }
-
-  const statuses = (value as Record<string, unknown>).statuses;
-  if (!Array.isArray(statuses) || statuses.length === 0) {
-    return undefined;
-  }
-
-  return getStringFromObject(statuses[0], "id");
-}
-
-export function extractWhatsAppMessages(payload: unknown): ParsedWhatsAppMessage[] {
-  if (!payload || typeof payload !== "object") {
-    return [];
-  }
-
-  const payloadRecord = payload as Record<string, unknown>;
-  const entries = payloadRecord.entry;
-  if (!Array.isArray(entries) || entries.length === 0) {
-    return [];
-  }
-
-  const firstEntry = entries[0];
-  if (!firstEntry || typeof firstEntry !== "object") {
-    return [];
-  }
-
-  const changes = (firstEntry as Record<string, unknown>).changes;
-  if (!Array.isArray(changes) || changes.length === 0) {
-    return [];
-  }
-
-  const firstChange = changes[0];
-  if (!firstChange || typeof firstChange !== "object") {
-    return [];
-  }
-
-  const value = (firstChange as Record<string, unknown>).value;
-  if (!value || typeof value !== "object") {
-    return [];
-  }
-
-  const messages = (value as Record<string, unknown>).messages;
-  if (!Array.isArray(messages)) {
-    return [];
-  }
-
-  const parsed: ParsedWhatsAppMessage[] = [];
-
-  for (const item of messages) {
-    const id = getStringFromObject(item, "id");
-    const from = getStringFromObject(item, "from");
-    const type = getStringFromObject(item, "type") ?? "unknown";
-    const timestamp = getStringFromObject(item, "timestamp");
-
-    if (!id || !from) {
+  const values = extractWhatsAppChangeValues(payload);
+  for (const value of values) {
+    const statuses = value.statuses;
+    if (!Array.isArray(statuses) || statuses.length === 0) {
       continue;
     }
 
-    const textContainer =
-      item && typeof item === "object" ? (item as Record<string, unknown>).text : undefined;
-    const text = getStringFromObject(textContainer, "body") ?? `[${type} message]`;
+    for (const status of statuses) {
+      const statusId = getStringFromObject(status, "id");
+      if (statusId) {
+        return statusId;
+      }
+    }
+  }
 
-    parsed.push({
-      id,
-      from,
-      type,
-      text,
-      timestamp
-    });
+  return undefined;
+}
+
+export function extractWhatsAppMessages(payload: unknown): ParsedWhatsAppMessage[] {
+  const values = extractWhatsAppChangeValues(payload);
+  const parsed: ParsedWhatsAppMessage[] = [];
+  const seenMessageIds = new Set<string>();
+
+  for (const value of values) {
+    const messages = value.messages;
+    if (!Array.isArray(messages) || messages.length === 0) {
+      continue;
+    }
+
+    for (const item of messages) {
+      const id = getStringFromObject(item, "id");
+      const from = getStringFromObject(item, "from");
+      const type = getStringFromObject(item, "type") ?? "unknown";
+      const timestamp = getStringFromObject(item, "timestamp");
+
+      if (!id || !from || seenMessageIds.has(id)) {
+        continue;
+      }
+
+      const textContainer =
+        item && typeof item === "object" ? (item as Record<string, unknown>).text : undefined;
+      const text = getStringFromObject(textContainer, "body") ?? `[${type} message]`;
+
+      parsed.push({
+        id,
+        from,
+        type,
+        text,
+        timestamp
+      });
+      seenMessageIds.add(id);
+    }
   }
 
   return parsed;

@@ -115,6 +115,7 @@ pnpm worker:relay
 
 Primary mode:
 - `POST /api/v1/auth/login` returns JWT token for `ADMIN` and `DOCTOR`.
+  - Request body accepts either `role` (`ADMIN`/`DOCTOR`) or `portal` (`admin`/`doctor`).
 - Portal requests send `Authorization: Bearer <token>`.
 
 Development fallback (enabled by `ALLOW_DEV_HEADER_AUTH=true`):
