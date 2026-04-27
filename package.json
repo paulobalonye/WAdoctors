@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "tsx watch src/server.ts",
+    "dev:queue": "RELAY_DISPATCH_MODE=queue concurrently -k -n api,worker \"pnpm dev\" \"pnpm worker:relay\"",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "worker:relay": "tsx src/workers/relayWorker.ts",
@@ -42,6 +43,7 @@
     "@types/morgan": "^1.9.9",
     "@types/node": "^22.10.2",
     "@types/supertest": "^6.0.3",
+    "concurrently": "^9.2.1",
     "prisma": "^6.7.0",
     "supertest": "^7.1.1",
     "tsx": "^4.19.2",

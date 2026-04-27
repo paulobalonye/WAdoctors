@@ -75,6 +75,12 @@ pnpm dev
 pnpm worker:relay
 ```
 
+For local queue-mode workflow (API + relay worker together):
+
+```bash
+pnpm dev:queue
+```
+
 9. Open portals:
 
 - `http://localhost:3000/portal/index.html`
