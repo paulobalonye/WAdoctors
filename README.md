@@ -40,19 +40,32 @@ pnpm install
 pnpm prisma:generate
 ```
 
-4. Start dev server:
+4. Start local data services (PostgreSQL + Redis):
+
+```bash
+pnpm db:up
+```
+
+5. Run migrations and seed bootstrap users:
+
+```bash
+pnpm prisma:migrate --name init
+pnpm prisma:seed
+```
+
+6. Start dev server:
 
 ```bash
 pnpm dev
 ```
 
-5. Optional: run relay worker when `RELAY_DISPATCH_MODE=queue`:
+7. Optional: run relay worker when `RELAY_DISPATCH_MODE=queue`:
 
 ```bash
 pnpm worker:relay
 ```
 
-6. Open portals:
+8. Open portals:
 
 - `http://localhost:3000/portal/index.html`
 - `http://localhost:3000/portal/doctor.html`
@@ -112,6 +125,7 @@ Development fallback (enabled by `ALLOW_DEV_HEADER_AUTH=true`):
 10. Doctor portal and admin portal API foundations with role-based route guards.
 11. Doctor portal and admin portal frontend pages served by the backend app.
 12. JWT login flow for Doctor and Admin portals with optional dev-header fallback.
+13. Docker-based local Postgres/Redis and Prisma seed pipeline for bootstrap users.
 
 ## Next implementation steps
 

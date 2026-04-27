@@ -11,10 +11,14 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "worker:relay": "tsx src/workers/relayWorker.ts",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:logs": "docker compose logs -f",
     "typecheck": "tsc --noEmit",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:deploy": "prisma migrate deploy"
+    "prisma:deploy": "prisma migrate deploy",
+    "prisma:seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.7.0",
@@ -38,5 +42,8 @@
     "prisma": "^6.7.0",
     "tsx": "^4.19.2",
     "typescript": "^5.8.3"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   }
 }
