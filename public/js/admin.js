@@ -81,6 +81,36 @@ const adminRelayFailedJobsBody = byId("adminRelayFailedJobsBody");
 adminIdInput.value = adminId;
 adminEmailInput.value = localStorage.getItem(storageKeys.adminEmail) || "";
 
+function parseCaseTriageTranscript(rawValue) {
+  if (typeof rawValue !== "string" || !rawValue.trim()) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(rawValue);
+    const source = parsed?.triageSource === "AI" ? "AI" : "HEURISTIC";
+    const route = typeof parsed?.route === "string" ? parsed.route : "";
+    const confidenceRaw = Number(parsed?.triageConfidence);
+    const confidence = Number.isFinite(confidenceRaw)
+      ? Math.min(Math.max(confidenceRaw, 0), 1)
+      : null;
+    const redFlags = Array.isArray(parsed?.triageRedFlags)
+      ? parsed.triageRedFlags
+          .map((item) => String(item || "").trim())
+          .filter((item, index, arr) => item && arr.indexOf(item) === index)
+      : [];
+
+    return {
+      source,
+      route,
+      confidence,
+      redFlags
+    };
+  } catch {
+    return null;
+  }
+}
+
 function authHeaders() {
   if (adminToken) {
     return {
@@ -390,9 +420,32 @@ function renderSelectedCaseMeta() {
     adminSelectedCaseMeta.textContent = "Select a case row to manage it.";
     return;
   }
+  const selected = casesCache.find((item) => item.id === selectedCaseId);
+  if (!selected) {
+    adminSelectedCaseMeta.innerHTML = `
+      <span class="badge">Case ${escapeHtml(selectedCaseId)}</span>
+      <span class="badge">Status ${escapeHtml(selectedCaseStatus || "-")}</span>
+    `;
+    return;
+  }
+
+  const triage = parseCaseTriageTranscript(selected.aiTranscript);
+  const confidenceBadge = triage && triage.confidence !== null
+    ? `${Math.round(triage.confidence * 100)}%`
+    : "-";
+  const summaryText = String(selected.aiSummary || "").trim();
+  const redFlags = triage?.redFlags?.length ? triage.redFlags.join(", ") : "";
+
   adminSelectedCaseMeta.innerHTML = `
-    <span class="badge">Case ${escapeHtml(selectedCaseId)}</span>
-    <span class="badge">Status ${escapeHtml(selectedCaseStatus || "-")}</span>
+    <span class="badge">Case ${escapeHtml(selected.id)}</span>
+    <span class="badge">Status ${escapeHtml(selected.status || "-")}</span>
+    <span class="badge">Patient ${escapeHtml(selected.patient?.fullName || selected.patient?.whatsappPhone || "-")}</span>
+    <span class="badge">Doctor ${escapeHtml(selected.assignedDoctor?.fullName || "-")}</span>
+    <span class="badge">Triage ${escapeHtml(triage?.source || "HEURISTIC")}</span>
+    <span class="badge">Route ${escapeHtml(triage?.route || "-")}</span>
+    <span class="badge">Confidence ${escapeHtml(confidenceBadge)}</span>
+    ${summaryText ? `<div class="muted" style="margin-top: 8px">${escapeHtml(summaryText)}</div>` : ""}
+    ${redFlags ? `<div class="muted" style="margin-top: 4px">Red flags: ${escapeHtml(redFlags)}</div>` : ""}
   `;
 }
 

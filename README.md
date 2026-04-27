@@ -172,6 +172,7 @@ Safety guard:
 14. Doctor assignment now respects schedule availability and max concurrent case limits.
 15. Baseline Prisma migration checked in at `prisma/migrations/20260426180000_init`.
 16. AI-assisted triage scoring path added (OpenAI-backed, feature-flagged, heuristic fallback).
+17. AI triage metadata is persisted on new cases (`aiSummary` + structured `aiTranscript`) and shown in admin/doctor case context.
 
 ## Next implementation steps
 

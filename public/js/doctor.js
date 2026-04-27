@@ -33,6 +33,36 @@ const closeDoctorCaseBtn = byId("closeDoctorCaseBtn");
 doctorIdInput.value = doctorId;
 doctorEmailInput.value = localStorage.getItem(storageKeys.doctorEmail) || "";
 
+function parseCaseTriageTranscript(rawValue) {
+  if (typeof rawValue !== "string" || !rawValue.trim()) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(rawValue);
+    const source = parsed?.triageSource === "AI" ? "AI" : "HEURISTIC";
+    const route = typeof parsed?.route === "string" ? parsed.route : "";
+    const confidenceRaw = Number(parsed?.triageConfidence);
+    const confidence = Number.isFinite(confidenceRaw)
+      ? Math.min(Math.max(confidenceRaw, 0), 1)
+      : null;
+    const redFlags = Array.isArray(parsed?.triageRedFlags)
+      ? parsed.triageRedFlags
+          .map((item) => String(item || "").trim())
+          .filter((item, index, arr) => item && arr.indexOf(item) === index)
+      : [];
+
+    return {
+      source,
+      route,
+      confidence,
+      redFlags
+    };
+  } catch {
+    return null;
+  }
+}
+
 function authHeaders() {
   if (doctorToken) {
     return {
@@ -99,10 +129,22 @@ function updateSelectedCaseMeta() {
     return;
   }
 
+  const triage = parseCaseTriageTranscript(selected.aiTranscript);
+  const confidenceBadge = triage && triage.confidence !== null
+    ? `${Math.round(triage.confidence * 100)}%`
+    : "-";
+  const summaryText = String(selected.aiSummary || "").trim();
+  const redFlags = triage?.redFlags?.length ? triage.redFlags.join(", ") : "";
+
   selectedDoctorCaseMeta.innerHTML = `
     <span class="badge">Case ${escapeHtml(selected.id)}</span>
     <span class="badge">Status ${escapeHtml(selected.status)}</span>
     <span class="badge">Patient ${escapeHtml(selected.patient?.fullName || selected.patient?.whatsappPhone || "-")}</span>
+    <span class="badge">Triage ${escapeHtml(triage?.source || "HEURISTIC")}</span>
+    <span class="badge">Route ${escapeHtml(triage?.route || "-")}</span>
+    <span class="badge">Confidence ${escapeHtml(confidenceBadge)}</span>
+    ${summaryText ? `<div class="muted" style="margin-top: 8px">${escapeHtml(summaryText)}</div>` : ""}
+    ${redFlags ? `<div class="muted" style="margin-top: 4px">Red flags: ${escapeHtml(redFlags)}</div>` : ""}
   `;
 }
 

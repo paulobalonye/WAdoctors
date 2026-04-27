@@ -47,12 +47,16 @@ export async function createNewCase(params: {
   patientId: string;
   chiefComplaint: string;
   urgencyScore?: number;
+  aiSummary?: string;
+  aiTranscript?: string;
 }) {
   return prisma.triageCase.create({
     data: {
       patientId: params.patientId,
       chiefComplaint: params.chiefComplaint,
       urgencyScore: params.urgencyScore,
+      aiSummary: params.aiSummary,
+      aiTranscript: params.aiTranscript,
       status: CaseStatus.NEW,
       startedAt: new Date()
     }

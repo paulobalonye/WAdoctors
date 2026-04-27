@@ -2,6 +2,7 @@ import { CaseStatus } from "@prisma/client";
 import { env } from "../../config/env.js";
 import { prisma } from "../../lib/prisma.js";
 import { buildWhatsAppWorkflowPreviewWithAI } from "../consultations/whatsappWorkflow.js";
+import { buildCaseTriageStorage } from "../consultations/triageStorage.js";
 import { createOpenAITriageProvider } from "../../integrations/openaiTriageProvider.js";
 import { assignDoctorIfNeeded } from "../cases/assignmentService.js";
 import {
@@ -64,11 +65,22 @@ export async function processWhatsAppWebhookPayload(payload: unknown): Promise<W
         aiEnabled: env.AI_TRIAGE_ENABLED === "true",
         provider: triageAIProvider
       });
+      const triageStorage = buildCaseTriageStorage({
+        triageSource: workflow.triageSource,
+        triageSummary: workflow.triageSummary,
+        triageConfidence: workflow.triageConfidence,
+        triageRedFlags: workflow.triageRedFlags,
+        baselineUrgency: workflow.baselineUrgency,
+        urgencyScore: workflow.urgencyScore,
+        route: workflow.route
+      });
 
       triageCase = await createNewCase({
         patientId: patient.id,
         chiefComplaint: message.text.slice(0, 255),
-        urgencyScore: workflow.urgencyScore
+        urgencyScore: workflow.urgencyScore,
+        aiSummary: triageStorage.aiSummary,
+        aiTranscript: triageStorage.aiTranscript
       });
 
       const transitions = workflow.transitions.slice(1).map((item) => ({
