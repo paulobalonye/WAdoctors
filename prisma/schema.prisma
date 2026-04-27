@@ -110,6 +110,8 @@ model Doctor {
   boardCertificationUrl  String?
   medicalLicenseUrl      String?
   webexPersonId          String?
+  availability           Json?
+  maxConcurrentCases     Int             @default(3)
   kycStatus              DoctorKycStatus @default(PENDING)
   isActive               Boolean         @default(false)
   createdAt              DateTime        @default(now())

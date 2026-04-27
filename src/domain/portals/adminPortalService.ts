@@ -1,6 +1,7 @@
-import { DoctorKycStatus, type CaseStatus } from "@prisma/client";
+import { DoctorKycStatus, Prisma, type CaseStatus } from "@prisma/client";
 import { prisma } from "../../lib/prisma.js";
 import { hashPortalPassword } from "../auth/authService.js";
+import { defaultDoctorAvailability } from "../cases/doctorAvailability.js";
 
 const ACTIVE_CASE_STATUSES: CaseStatus[] = ["NEW", "TRIAGING", "ASSIGNED", "IN_PROGRESS", "ESCALATED"];
 
@@ -218,8 +219,11 @@ export async function createAdminDoctor(params: {
   webexPersonId?: string;
   isActive?: boolean;
   kycStatus?: DoctorKycStatus;
+  availability?: unknown;
+  maxConcurrentCases?: number;
 }) {
   const passwordHash = await hashPortalPassword(params.password);
+  const availability = (params.availability ?? defaultDoctorAvailability()) as Prisma.InputJsonValue;
 
   return prisma.doctor.create({
     data: {
@@ -230,6 +234,8 @@ export async function createAdminDoctor(params: {
       licenseState: params.licenseState,
       specialty: params.specialty,
       webexPersonId: params.webexPersonId,
+      availability,
+      maxConcurrentCases: params.maxConcurrentCases ?? 3,
       isActive: params.isActive ?? false,
       kycStatus: params.kycStatus ?? DoctorKycStatus.PENDING
     }
@@ -259,6 +265,24 @@ export async function resetDoctorPortalPassword(params: { doctorId: string; pass
     where: { id: params.doctorId },
     data: {
       passwordHash
+    }
+  });
+}
+
+export async function setDoctorSchedule(params: {
+  doctorId: string;
+  availability: unknown;
+  maxConcurrentCases?: number;
+}) {
+  const availability = params.availability as Prisma.InputJsonValue;
+
+  return prisma.doctor.update({
+    where: { id: params.doctorId },
+    data: {
+      availability,
+      ...(typeof params.maxConcurrentCases === "number"
+        ? { maxConcurrentCases: params.maxConcurrentCases }
+        : {})
     }
   });
 }

@@ -2,6 +2,7 @@ import { CaseStatus, type Doctor, type TriageCase } from "@prisma/client";
 import { env } from "../../config/env.js";
 import { prisma } from "../../lib/prisma.js";
 import { transitionCaseStatus } from "./caseRepository.js";
+import { isDoctorAvailableNow } from "./doctorAvailability.js";
 
 type CaseWithPatient = TriageCase & {
   patient: {
@@ -70,11 +71,20 @@ async function pickLeastBusyDoctor(doctors: Doctor[]): Promise<Doctor | null> {
     }
   }
 
+  const eligible = doctors.filter((doctor) => isDoctorAvailableNow(doctor.availability));
+  if (eligible.length === 0) {
+    return null;
+  }
+
   let selected: Doctor | null = null;
   let selectedLoad = Number.POSITIVE_INFINITY;
 
-  for (const doctor of doctors) {
+  for (const doctor of eligible) {
     const load = loadByDoctorId.get(doctor.id) ?? 0;
+    if (load >= doctor.maxConcurrentCases) {
+      continue;
+    }
+
     if (load < selectedLoad) {
       selected = doctor;
       selectedLoad = load;

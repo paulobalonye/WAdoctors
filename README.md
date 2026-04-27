@@ -97,6 +97,7 @@ pnpm worker:relay
 - `PATCH /api/v1/admin/doctors/:doctorId/active`
 - `PATCH /api/v1/admin/doctors/:doctorId/kyc`
 - `PATCH /api/v1/admin/doctors/:doctorId/password`
+- `PATCH /api/v1/admin/doctors/:doctorId/schedule`
 - `POST /api/v1/admin/admin-users`
 - `GET /api/v1/admin/webhooks`
 
@@ -126,10 +127,11 @@ Development fallback (enabled by `ALLOW_DEV_HEADER_AUTH=true`):
 11. Doctor portal and admin portal frontend pages served by the backend app.
 12. JWT login flow for Doctor and Admin portals with optional dev-header fallback.
 13. Docker-based local Postgres/Redis and Prisma seed pipeline for bootstrap users.
+14. Doctor assignment now respects schedule availability and max concurrent case limits.
 
 ## Next implementation steps
 
 1. Add dead-letter monitoring dashboards and queue alerting.
-2. Add doctor scheduling and availability windows to assignment logic.
+2. Add calendar-based shifts and holiday overrides for doctor availability.
 3. Disable header fallback in staging/prod (`ALLOW_DEV_HEADER_AUTH=false`) and enforce JWT-only portal access.
 4. Add first Prisma migration set and seed pipeline.

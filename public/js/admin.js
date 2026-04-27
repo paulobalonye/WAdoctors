@@ -118,12 +118,13 @@ function renderDoctors(doctors) {
           <td>${escapeHtml(doctor.licenseState || "-")}</td>
           <td>${escapeHtml(doctor.kycStatus)}</td>
           <td>${escapeHtml(String(doctor.isActive))}</td>
-          <td>${escapeHtml(String(doctor.activeCaseLoad ?? 0))}</td>
+          <td>${escapeHtml(String(doctor.activeCaseLoad ?? 0))} / ${escapeHtml(String(doctor.maxConcurrentCases ?? 3))}</td>
           <td>
             <div class="btnrow">
               <button class="secondary doc-active-btn" data-doctor-id="${escapeHtml(doctor.id)}" data-next-active="${nextActive}">${activeBtn}</button>
               <button class="secondary doc-kyc-btn" data-doctor-id="${escapeHtml(doctor.id)}" data-kyc="APPROVED">Approve KYC</button>
               <button class="secondary doc-reset-btn" data-doctor-id="${escapeHtml(doctor.id)}">Reset Password</button>
+              <button class="secondary doc-schedule-btn" data-doctor-id="${escapeHtml(doctor.id)}">Schedule</button>
             </div>
           </td>
         </tr>
@@ -194,6 +195,60 @@ function renderDoctors(doctors) {
         setStatus(adminStatusBar, "Doctor password reset.", "success");
       } catch (error) {
         setStatus(adminStatusBar, error.message || "Failed to reset doctor password", "error");
+      }
+    });
+  });
+
+  adminDoctorsTableBody.querySelectorAll(".doc-schedule-btn").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const doctorId = button.getAttribute("data-doctor-id");
+      if (!doctorId) {
+        return;
+      }
+
+      const doctor = doctorsCache.find((item) => item.id === doctorId);
+      if (!doctor) {
+        return;
+      }
+
+      const defaultAvailability = JSON.stringify(doctor.availability || {}, null, 2);
+      const availabilityText = prompt("Availability JSON", defaultAvailability);
+      if (availabilityText === null) {
+        return;
+      }
+
+      const maxText = prompt(
+        "Max concurrent cases",
+        String(doctor.maxConcurrentCases ?? 3)
+      );
+      if (maxText === null) {
+        return;
+      }
+
+      let availability;
+      try {
+        availability = JSON.parse(availabilityText);
+      } catch {
+        setStatus(adminStatusBar, "Invalid availability JSON", "error");
+        return;
+      }
+
+      const maxConcurrentCases = Number.parseInt(maxText, 10);
+      if (!Number.isFinite(maxConcurrentCases) || maxConcurrentCases < 1 || maxConcurrentCases > 20) {
+        setStatus(adminStatusBar, "Max concurrent must be between 1 and 20", "error");
+        return;
+      }
+
+      try {
+        await apiRequest(`/api/v1/admin/doctors/${doctorId}/schedule`, {
+          method: "PATCH",
+          headers: authHeaders(),
+          body: JSON.stringify({ availability, maxConcurrentCases })
+        });
+        await loadDoctors();
+        setStatus(adminStatusBar, "Doctor schedule updated.", "success");
+      } catch (error) {
+        setStatus(adminStatusBar, error.message || "Failed to update doctor schedule", "error");
       }
     });
   });

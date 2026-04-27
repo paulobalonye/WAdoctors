@@ -20,6 +20,7 @@ Status: Active execution plan
   - Doctor portal and admin portal API foundation with role-protected endpoints
   - Doctor and admin portal UI pages served at `/portal/*`
   - JWT login endpoints and token-based auth for doctor/admin portals
+  - Doctor assignment checks availability windows and max concurrent capacity
 
 ## 1) Product mode (locked)
 

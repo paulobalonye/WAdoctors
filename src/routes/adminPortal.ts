@@ -13,6 +13,7 @@ import {
   listAdminDoctors,
   listRecentWebhookEvents,
   resetDoctorPortalPassword,
+  setDoctorSchedule,
   setAdminCaseStatus,
   setDoctorActive,
   setDoctorKycStatus
@@ -44,7 +45,9 @@ const createDoctorBodySchema = z.object({
   specialty: z.string().optional(),
   webexPersonId: z.string().optional(),
   isActive: z.boolean().optional(),
-  kycStatus: z.nativeEnum(DoctorKycStatus).optional()
+  kycStatus: z.nativeEnum(DoctorKycStatus).optional(),
+  availability: z.unknown().optional(),
+  maxConcurrentCases: z.number().int().min(1).max(20).optional()
 });
 
 const createAdminUserBodySchema = z.object({
@@ -55,6 +58,11 @@ const createAdminUserBodySchema = z.object({
 
 const resetDoctorPasswordBodySchema = z.object({
   password: z.string().min(8)
+});
+
+const doctorScheduleBodySchema = z.object({
+  availability: z.unknown(),
+  maxConcurrentCases: z.number().int().min(1).max(20).optional()
 });
 
 const caseStatusBodySchema = z.object({
@@ -227,6 +235,26 @@ adminPortalRouter.patch("/doctors/:doctorId/password", async (req: AuthedRequest
       email: doctor.email,
       passwordReset: true
     });
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+adminPortalRouter.patch("/doctors/:doctorId/schedule", async (req: AuthedRequest, res: Response) => {
+  try {
+    const body = doctorScheduleBodySchema.safeParse(req.body);
+    if (!body.success) {
+      res.status(400).json({ error: "Invalid body", details: body.error.flatten().fieldErrors });
+      return;
+    }
+
+    const doctor = await setDoctorSchedule({
+      doctorId: req.params.doctorId,
+      availability: body.data.availability,
+      maxConcurrentCases: body.data.maxConcurrentCases
+    });
+
+    res.status(200).json(doctor);
   } catch (error) {
     handleError(res, error);
   }
