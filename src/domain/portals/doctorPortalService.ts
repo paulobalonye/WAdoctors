@@ -25,6 +25,8 @@ export async function getDoctorProfile(doctorId: string) {
 export async function listDoctorCases(params: {
   doctorId: string;
   status?: CaseStatus;
+  triageSource?: "AI" | "HEURISTIC";
+  triageRoute?: "ROUTE_TO_DOCTOR" | "SEND_SELF_CARE" | "ESCALATE_EMERGENCY" | "OUT_OF_STATE";
 }) {
   const cases = await prisma.triageCase.findMany({
     where: {
@@ -45,13 +47,25 @@ export async function listDoctorCases(params: {
     }
   });
 
-  return cases.map((item) => ({
+  const mapped = cases.map((item) => ({
     ...item,
     triage: buildCaseTriageView({
       aiSummary: item.aiSummary,
       aiTranscript: item.aiTranscript
     })
   }));
+
+  return mapped.filter((item) => {
+    if (params.triageSource && item.triage?.source !== params.triageSource) {
+      return false;
+    }
+
+    if (params.triageRoute && item.triage?.route !== params.triageRoute) {
+      return false;
+    }
+
+    return true;
+  });
 }
 
 export async function getDoctorCaseMessages(params: {

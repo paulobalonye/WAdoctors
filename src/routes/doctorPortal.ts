@@ -11,6 +11,13 @@ import {
 } from "../domain/portals/doctorPortalService.js";
 
 const doctorCaseStatusSchema = z.nativeEnum(CaseStatus).optional();
+const doctorTriageSourceSchema = z.enum(["AI", "HEURISTIC"]).optional();
+const doctorTriageRouteSchema = z.enum([
+  "ROUTE_TO_DOCTOR",
+  "SEND_SELF_CARE",
+  "ESCALATE_EMERGENCY",
+  "OUT_OF_STATE"
+]).optional();
 const sendMessageBodySchema = z.object({
   text: z.string().min(1)
 });
@@ -43,10 +50,22 @@ doctorPortalRouter.get("/cases", async (req: AuthedRequest, res: Response) => {
       res.status(400).json({ error: "Invalid case status filter" });
       return;
     }
+    const triageSource = doctorTriageSourceSchema.safeParse(req.query.triageSource);
+    if (!triageSource.success) {
+      res.status(400).json({ error: "Invalid triage source filter" });
+      return;
+    }
+    const triageRoute = doctorTriageRouteSchema.safeParse(req.query.triageRoute);
+    if (!triageRoute.success) {
+      res.status(400).json({ error: "Invalid triage route filter" });
+      return;
+    }
 
     const cases = await listDoctorCases({
       doctorId: req.auth!.userId,
-      status: status.data
+      status: status.data,
+      triageSource: triageSource.data,
+      triageRoute: triageRoute.data
     });
 
     res.status(200).json(cases);

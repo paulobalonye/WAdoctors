@@ -132,6 +132,7 @@ pnpm dev:queue
 Relay retry request bodies may include optional `caseId` for targeted retries.
 `GET /api/v1/admin/relay/failed` accepts `limit` plus optional `name` (`PATIENT_TO_WEBEX` or `DOCTOR_TO_WHATSAPP`) and `caseId` filters.
 `GET /api/v1/admin/cases` accepts optional triage filters: `triageSource` (`AI`/`HEURISTIC`) and `triageRoute`.
+`GET /api/v1/doctor/cases` accepts optional triage filters: `triageSource` (`AI`/`HEURISTIC`) and `triageRoute`.
 `POST /api/v1/admin/triage/evaluate` accepts `messageText` plus optional `patientState` for simulation.
 `/api/v1/admin/relay/dev/inject-failure` is for non-production queue-mode drills and accepts `direction` + optional `caseId`.
 Queue drill steps are documented in `docs/RELAY_QUEUE_DRILL.md`.
@@ -184,6 +185,7 @@ Safety guard:
 21. Admin and doctor case tables now show triage source/route, and doctor case list can be filtered by triage source.
 22. Admin case list now supports triage source and triage route filters via API and portal controls.
 23. Admin triage evaluator endpoint + portal tool for rapid sample-message triage simulation.
+24. Doctor case list now supports both triage source and triage route filters via API and portal controls.
 
 ## Next implementation steps
 

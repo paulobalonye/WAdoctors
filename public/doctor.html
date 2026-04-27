@@ -50,7 +50,7 @@
 
         <div class="panel">
           <h2>My Cases</h2>
-          <div class="grid-2">
+          <div class="grid-3">
             <div class="field">
               <label for="doctorCaseStatusFilter">Status Filter</label>
               <select id="doctorCaseStatusFilter">
@@ -69,6 +69,16 @@
                 <option value="">All</option>
                 <option value="AI">AI</option>
                 <option value="HEURISTIC">HEURISTIC</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="doctorCaseTriageRouteFilter">Triage Route</label>
+              <select id="doctorCaseTriageRouteFilter">
+                <option value="">All</option>
+                <option value="ROUTE_TO_DOCTOR">ROUTE_TO_DOCTOR</option>
+                <option value="SEND_SELF_CARE">SEND_SELF_CARE</option>
+                <option value="ESCALATE_EMERGENCY">ESCALATE_EMERGENCY</option>
+                <option value="OUT_OF_STATE">OUT_OF_STATE</option>
               </select>
             </div>
             <div class="btnrow" style="align-items: end">

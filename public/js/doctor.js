@@ -21,6 +21,7 @@ const doctorStatusBar = byId("doctorStatusBar");
 const doctorProfile = byId("doctorProfile");
 const doctorCaseStatusFilter = byId("doctorCaseStatusFilter");
 const doctorCaseTriageSourceFilter = byId("doctorCaseTriageSourceFilter");
+const doctorCaseTriageRouteFilter = byId("doctorCaseTriageRouteFilter");
 const refreshDoctorCasesBtn = byId("refreshDoctorCasesBtn");
 const doctorCasesTableBody = byId("doctorCasesTableBody");
 const selectedDoctorCaseMeta = byId("selectedDoctorCaseMeta");
@@ -251,21 +252,24 @@ async function loadCases() {
   }
 
   const status = doctorCaseStatusFilter.value;
-  const query = status ? `?status=${encodeURIComponent(status)}` : "";
-  const data = await apiRequest(`/api/v1/doctor/cases${query}`, {
+  const triageSource = doctorCaseTriageSourceFilter.value;
+  const triageRoute = doctorCaseTriageRouteFilter.value;
+  const query = new URLSearchParams();
+  if (status) {
+    query.set("status", status);
+  }
+  if (triageSource) {
+    query.set("triageSource", triageSource);
+  }
+  if (triageRoute) {
+    query.set("triageRoute", triageRoute);
+  }
+
+  const data = await apiRequest(`/api/v1/doctor/cases?${query.toString()}`, {
     headers: authHeaders()
   });
 
-  const triageSourceFilter = doctorCaseTriageSourceFilter.value;
-  casesCache = Array.isArray(data)
-    ? data.filter((item) => {
-        if (!triageSourceFilter) {
-          return true;
-        }
-        const triage = getCaseTriage(item);
-        return triage?.source === triageSourceFilter;
-      })
-    : [];
+  casesCache = Array.isArray(data) ? data : [];
   if (selectedCaseId && !casesCache.some((item) => item.id === selectedCaseId)) {
     selectedCaseId = "";
   }
@@ -373,6 +377,7 @@ clearDoctorSessionBtn.addEventListener("click", () => {
   doctorIdInput.value = "";
   doctorPasswordInput.value = "";
   doctorCaseTriageSourceFilter.value = "";
+  doctorCaseTriageRouteFilter.value = "";
   doctorProfile.textContent = "No profile loaded.";
   doctorCasesTableBody.innerHTML = "";
   doctorMessagesList.innerHTML = "";
@@ -428,6 +433,14 @@ doctorCaseTriageSourceFilter.addEventListener("change", async () => {
     await loadCases();
   } catch (error) {
     setStatus(doctorStatusBar, error.message || "Failed to apply triage filter", "error");
+  }
+});
+
+doctorCaseTriageRouteFilter.addEventListener("change", async () => {
+  try {
+    await loadCases();
+  } catch (error) {
+    setStatus(doctorStatusBar, error.message || "Failed to apply triage route filter", "error");
   }
 });
 
