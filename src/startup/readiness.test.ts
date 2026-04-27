@@ -5,7 +5,16 @@ describe("formatIntegrationReadinessWarnings", () => {
   it("returns empty list when all integrations are ready", () => {
     const warnings = formatIntegrationReadinessWarnings({
       summary: { readyCount: 5, total: 5 },
-      aiTriage: { ready: true, missing: [], notes: ["provider=openai"], enabled: true, provider: "openai", model: "gpt-4.1-mini" },
+      aiTriage: {
+        ready: true,
+        missing: [],
+        notes: ["provider=openai"],
+        enabled: true,
+        provider: "openai",
+        model: "gpt-4.1-mini",
+        promptVersion: "v1",
+        minConfidence: 0.45
+      },
       whatsapp: { ready: true, missing: [], notes: [] },
       webex: { ready: true, missing: [], notes: [] },
       stripe: { ready: true, missing: [], notes: [] },
@@ -24,7 +33,9 @@ describe("formatIntegrationReadinessWarnings", () => {
         notes: ["provider=openai", "model=gpt-4.1-mini"],
         enabled: true,
         provider: "openai",
-        model: "gpt-4.1-mini"
+        model: "gpt-4.1-mini",
+        promptVersion: "v1",
+        minConfidence: 0.45
       },
       whatsapp: {
         ready: false,

@@ -3,9 +3,29 @@ import type { AITriageSuggestion, TriageAIProvider } from "../domain/triage/aiTr
 type OpenAITriageProviderOptions = {
   apiKey?: string;
   model?: string;
+  promptVersion?: string;
   baseUrl?: string;
   timeoutMs?: number;
 };
+
+function buildSystemPrompt(promptVersion: string): string {
+  const normalized = promptVersion.trim().toLowerCase() || "v1";
+
+  if (normalized === "v2") {
+    return [
+      "You are a cautious urgent-care triage assistant for Ohio launch.",
+      "Output only JSON with fields: urgencyScore (1-5), summary (string), redFlags (string[]), confidence (0..1).",
+      "Patient safety is highest priority.",
+      "Never lower urgency when severe symptoms are present, and include explicit red flags."
+    ].join(" ");
+  }
+
+  return [
+    "You are a cautious urgent-care triage assistant for Ohio launch.",
+    "Output only JSON with fields: urgencyScore (1-5), summary (string), redFlags (string[]), confidence (0..1).",
+    "Prioritize patient safety and never downplay emergency signals."
+  ].join(" ");
+}
 
 function parseJsonObject(content: unknown): AITriageSuggestion {
   if (typeof content !== "string" || !content.trim()) {
@@ -35,6 +55,7 @@ export function createOpenAITriageProvider(options: OpenAITriageProviderOptions)
   }
 
   const model = options.model?.trim() || "gpt-4.1-mini";
+  const promptVersion = options.promptVersion?.trim() || "v1";
   const baseUrl = options.baseUrl?.trim() || "https://api.openai.com/v1";
   const timeoutMs =
     Number.isFinite(options.timeoutMs) && Number(options.timeoutMs) >= 500 ? Number(options.timeoutMs) : 8000;
@@ -60,12 +81,12 @@ export function createOpenAITriageProvider(options: OpenAITriageProviderOptions)
             messages: [
               {
                 role: "system",
-                content:
-                  "You are a cautious urgent-care triage assistant for Ohio launch. Output only JSON with fields: urgencyScore (1-5), summary (string), redFlags (string[]), confidence (0..1). Prioritize patient safety and never downplay emergency signals."
+                content: buildSystemPrompt(promptVersion)
               },
               {
                 role: "user",
                 content: JSON.stringify({
+                  promptVersion,
                   patientState: input.patientState,
                   patientMessage: input.messageText,
                   baselineUrgency: input.baselineUrgency

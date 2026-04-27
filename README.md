@@ -81,6 +81,12 @@ For local queue-mode workflow (API + relay worker together):
 pnpm dev:queue
 ```
 
+For Docker-based AWS-dev parity (API + worker + Postgres + Redis):
+
+```bash
+pnpm awsdev:up
+```
+
 9. Open portals:
 
 - `http://localhost:3000/portal/index.html`
@@ -107,6 +113,7 @@ pnpm dev:queue
 - `GET /api/v1/admin/cases`
 - `GET /api/v1/admin/cases/:caseId`
 - `GET /api/v1/admin/cases/:caseId/messages`
+- `POST /api/v1/admin/cases/:caseId/replay`
 - `PATCH /api/v1/admin/cases/:caseId/status`
 - `PATCH /api/v1/admin/cases/:caseId/assign`
 - `GET /api/v1/admin/doctors`
@@ -135,13 +142,20 @@ Relay retry request bodies may include optional `caseId` for targeted retries.
 `GET /api/v1/doctor/cases` accepts optional triage filters: `triageSource` (`AI`/`HEURISTIC`) and `triageRoute`.
 `POST /api/v1/admin/triage/evaluate` accepts `messageText` plus optional `patientState` for simulation.
 `/api/v1/admin/relay/dev/inject-failure` is for non-production queue-mode drills and accepts `direction` + optional `caseId`.
+`POST /api/v1/admin/cases/:caseId/replay` supports manual relay replay with body `{ "direction": "PATIENT_TO_WEBEX" | "DOCTOR_TO_WHATSAPP", "messageId?": "<optional>" }`.
 Queue drill steps are documented in `docs/RELAY_QUEUE_DRILL.md`.
 AI triage drill steps are documented in `docs/AI_TRIAGE_DRILL.md`.
+AWS dev deployment baseline is documented in `docs/AWS_DEV_BASELINE.md`.
+Compliance ownership baseline is documented in `docs/COMPLIANCE_OWNERSHIP.md`.
 
 AI triage can be enabled with:
 - `OPENAI_API_KEY=<key>` (auto-enables AI triage)
 - Optional explicit flag: `AI_TRIAGE_ENABLED=true`
-- Optional model and timeout overrides: `OPENAI_TRIAGE_MODEL`, `OPENAI_TRIAGE_TIMEOUT_MS`
+- Optional model/prompt/threshold/timeout overrides:
+  - `OPENAI_TRIAGE_MODEL`
+  - `OPENAI_TRIAGE_PROMPT_VERSION`
+  - `OPENAI_TRIAGE_MIN_CONFIDENCE`
+  - `OPENAI_TRIAGE_TIMEOUT_MS`
 
 When enabled, AI urgency is blended with a safety floor from the existing keyword heuristic (never lower than baseline), and fallback stays active if AI is unavailable.
 
@@ -186,6 +200,10 @@ Safety guard:
 22. Admin case list now supports triage source and triage route filters via API and portal controls.
 23. Admin triage evaluator endpoint + portal tool for rapid sample-message triage simulation.
 24. Doctor case list now supports both triage source and triage route filters via API and portal controls.
+25. Relay queue dedupe keys now prevent duplicate queue jobs for the same source message.
+26. Webhook processors now include loop/echo guards for relayed content patterns.
+27. Admin replay-by-case endpoint added for controlled relay recovery actions.
+28. Dockerized AWS-dev baseline added (API + worker + Postgres + Redis).
 
 ## Next implementation steps
 

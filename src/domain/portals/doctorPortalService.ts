@@ -112,7 +112,7 @@ export async function sendDoctorPortalMessage(params: {
     throw new Error("Message text cannot be empty");
   }
 
-  await prisma.message.create({
+  const doctorMessage = await prisma.message.create({
     data: {
       caseId: triageCase.id,
       senderType: "DOCTOR",
@@ -135,7 +135,8 @@ export async function sendDoctorPortalMessage(params: {
 
   const dispatchResult = await dispatchDoctorToWhatsApp({
     caseId: triageCase.id,
-    doctorText: `Doctor: ${trimmedText}`
+    doctorText: `Doctor: ${trimmedText}`,
+    relayKey: doctorMessage.id
   });
 
   return {
@@ -172,7 +173,7 @@ export async function closeDoctorCase(params: {
   }
 
   const closeSummary = params.summary?.trim() || "Your consultation has been completed.";
-  await prisma.message.create({
+  const closeMessage = await prisma.message.create({
     data: {
       caseId: triageCase.id,
       senderType: "SYSTEM",
@@ -185,7 +186,8 @@ export async function closeDoctorCase(params: {
 
   const dispatchResult = await dispatchDoctorToWhatsApp({
     caseId: triageCase.id,
-    doctorText: `Visit summary: ${closeSummary}`
+    doctorText: `Visit summary: ${closeSummary}`,
+    relayKey: closeMessage.id
   });
 
   return {

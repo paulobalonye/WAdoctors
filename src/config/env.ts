@@ -19,6 +19,8 @@ const envSchema = z.object({
   AI_TRIAGE_ENABLED: z.enum(["true", "false"]).default("false"),
   OPENAI_API_KEY: z.string().optional(),
   OPENAI_TRIAGE_MODEL: z.string().default("gpt-4.1-mini"),
+  OPENAI_TRIAGE_PROMPT_VERSION: z.string().default("v1"),
+  OPENAI_TRIAGE_MIN_CONFIDENCE: z.coerce.number().min(0).max(1).default(0.45),
   OPENAI_BASE_URL: z.string().url().optional(),
   OPENAI_TRIAGE_TIMEOUT_MS: z.coerce.number().int().min(500).max(30000).default(8000),
   RISK_ACCEPTANCE_SIGNER: z.string().min(1),

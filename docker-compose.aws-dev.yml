@@ -1,0 +1,66 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: wadoctors-awsdev-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: wadoctors_dev
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - awsdev_postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    container_name: wadoctors-awsdev-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6380:6379"
+    volumes:
+      - awsdev_redis_data:/data
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wadoctors-awsdev-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/wadoctors_dev
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      - postgres
+      - redis
+    command: ["sh", "-lc", "pnpm prisma:deploy && node dist/server.js"]
+    ports:
+      - "3000:3000"
+
+  relay-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wadoctors-awsdev-worker
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/wadoctors_dev
+      REDIS_URL: redis://redis:6379
+      RELAY_DISPATCH_MODE: queue
+    depends_on:
+      - postgres
+      - redis
+      - api
+    command: ["node", "dist/workers/relayWorker.js"]
+
+volumes:
+  awsdev_postgres_data:
+  awsdev_redis_data:

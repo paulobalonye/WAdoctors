@@ -25,6 +25,7 @@ import {
   retryAdminRecentFailedRelayJobs,
   retryAdminRecentWhatsAppFailedRelayJobs,
   retryAdminRecentWebexFailedRelayJobs,
+  replayAdminCaseRelay,
   resetDoctorPortalPassword,
   setDoctorSchedule,
   setAdminCaseStatus,
@@ -98,6 +99,10 @@ const caseStatusBodySchema = z.object({
 
 const caseAssignBodySchema = z.object({
   doctorId: z.string().nullable()
+});
+const replayCaseRelayBodySchema = z.object({
+  direction: z.enum(["PATIENT_TO_WEBEX", "DOCTOR_TO_WHATSAPP"]),
+  messageId: z.string().min(1).max(128).optional()
 });
 
 const retryRecentRelayBodySchema = z.object({
@@ -236,6 +241,27 @@ adminPortalRouter.get("/cases/:caseId/messages", async (req: AuthedRequest, res:
   try {
     const messages = await getAdminCaseMessages(req.params.caseId);
     res.status(200).json(messages);
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+adminPortalRouter.post("/cases/:caseId/replay", async (req: AuthedRequest, res: Response) => {
+  try {
+    const body = replayCaseRelayBodySchema.safeParse(req.body ?? {});
+    if (!body.success) {
+      res.status(400).json({ error: "Invalid body", details: body.error.flatten().fieldErrors });
+      return;
+    }
+
+    const result = await replayAdminCaseRelay({
+      caseId: req.params.caseId,
+      direction: body.data.direction,
+      actorId: req.auth!.userId,
+      messageId: body.data.messageId
+    });
+
+    res.status(200).json(result);
   } catch (error) {
     handleError(res, error);
   }

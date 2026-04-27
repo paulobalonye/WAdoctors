@@ -201,4 +201,104 @@ describe("processWhatsAppWebhookPayload e2e", () => {
     expect(dispatchedTexts.some((text) => text.includes("New Case Assigned"))).toBe(true);
     expect(dispatchedTexts.some((text) => text.includes(`Patient ${phone}:`))).toBe(true);
   });
+
+  it("ignores probable outbound relay echo from WhatsApp to prevent loops", async () => {
+    (env as { RELAY_DISPATCH_MODE: "inline" | "queue" }).RELAY_DISPATCH_MODE = "inline";
+
+    const token = uniqueToken();
+    const phone = uniquePhone();
+    const outboundText = "Doctor: Please take acetaminophen and rest.";
+
+    const doctor = await prisma.doctor.create({
+      data: {
+        email: `whatsapp-loop-${token}@test.local`,
+        fullName: "Dr Loop Guard",
+        npiNumber: `npi-loop-${token}`,
+        isActive: true,
+        kycStatus: DoctorKycStatus.APPROVED,
+        webexPersonId: `person-loop-${token}`,
+        licenseState: env.LAUNCH_STATE
+      }
+    });
+    createdDoctorIds.push(doctor.id);
+
+    const patient = await prisma.patient.create({
+      data: {
+        whatsappPhone: phone,
+        fullName: "Patient Loop Guard"
+      }
+    });
+    createdPatientIds.push(patient.id);
+
+    const triageCase = await prisma.triageCase.create({
+      data: {
+        patientId: patient.id,
+        assignedDoctorId: doctor.id,
+        status: "IN_PROGRESS",
+        webexSpaceId: `room-loop-${token}`,
+        chiefComplaint: "Follow up symptom",
+        startedAt: new Date()
+      }
+    });
+    createdCaseIds.push(triageCase.id);
+
+    await prisma.message.create({
+      data: {
+        caseId: triageCase.id,
+        senderType: "SYSTEM",
+        senderId: "SYSTEM_RELAY",
+        platform: "WHATSAPP",
+        phiScope: "POSSIBLE",
+        content: outboundText
+      }
+    });
+
+    const payload = {
+      entry: [
+        {
+          changes: [
+            {
+              value: {
+                messages: [
+                  {
+                    id: `wamid-loop-${token}`,
+                    from: phone,
+                    type: "text",
+                    timestamp: `${Math.floor(Date.now() / 1000)}`,
+                    text: {
+                      body: outboundText
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    };
+
+    const sendTextMock = vi.mocked(sendWebexTextMessage);
+    const result = await processWhatsAppWebhookPayload(payload);
+
+    expect(result.processedCount).toBe(1);
+    expect(result.caseIds).toEqual([triageCase.id]);
+    expect(result.relays).toEqual([
+      {
+        caseId: triageCase.id,
+        relayed: false,
+        reason: "Ignoring probable WhatsApp relay echo"
+      }
+    ]);
+
+    const patientMessages = await prisma.message.findMany({
+      where: {
+        caseId: triageCase.id,
+        senderType: "PATIENT",
+        content: outboundText
+      }
+    });
+
+    expect(patientMessages).toHaveLength(0);
+    expect(sendTextMock).not.toHaveBeenCalled();
+  });
 });

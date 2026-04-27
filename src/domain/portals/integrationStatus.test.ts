@@ -10,7 +10,9 @@ describe("buildIntegrationStatus", () => {
         enabled: true,
         provider: "openai",
         apiKey: "openai-key",
-        model: "gpt-4.1-mini"
+        model: "gpt-4.1-mini",
+        promptVersion: "v1",
+        minConfidence: 0.45
       },
       whatsapp: {
         webhookSecret: "wa-secret",
@@ -33,7 +35,12 @@ describe("buildIntegrationStatus", () => {
     expect(status.summary.total).toBe(5);
     expect(status.aiTriage.ready).toBe(true);
     expect(status.aiTriage.enabled).toBe(true);
-    expect(status.aiTriage.notes).toEqual(["provider=openai", "model=gpt-4.1-mini"]);
+    expect(status.aiTriage.notes).toEqual([
+      "provider=openai",
+      "model=gpt-4.1-mini",
+      "promptVersion=v1",
+      "minConfidence=0.45"
+    ]);
     expect(status.whatsapp.ready).toBe(true);
     expect(status.webex.ready).toBe(true);
     expect(status.stripe.ready).toBe(true);
@@ -48,7 +55,9 @@ describe("buildIntegrationStatus", () => {
         enabled: true,
         provider: "openai",
         apiKey: "",
-        model: "gpt-4.1-mini"
+        model: "gpt-4.1-mini",
+        promptVersion: "v1",
+        minConfidence: 0.45
       },
       whatsapp: {
         webhookSecret: "",
@@ -98,7 +107,9 @@ describe("buildIntegrationStatus", () => {
         enabled: false,
         provider: "openai",
         apiKey: "",
-        model: "gpt-4.1-mini"
+        model: "gpt-4.1-mini",
+        promptVersion: "v1",
+        minConfidence: 0.45
       },
       whatsapp: {
         webhookSecret: "wa-secret",

@@ -12,11 +12,13 @@ export type RelayJobData =
       caseId: string;
       patientPhone: string;
       text: string;
+      relayKey?: string;
     }
   | {
       type: "DOCTOR_TO_WHATSAPP";
       caseId: string;
       doctorText: string;
+      relayKey?: string;
     };
 
 const RELAY_QUEUE_NAME = "relay-jobs";
@@ -63,6 +65,21 @@ const defaultJobOptions: JobsOptions = {
   removeOnFail: 1000
 };
 
+function normalizeRelayKey(value: string | undefined): string {
+  return String(value || "")
+    .trim()
+    .slice(0, 128);
+}
+
+export function buildRelayJobId(data: RelayJobData): string | undefined {
+  const relayKey = normalizeRelayKey(data.relayKey);
+  if (!relayKey) {
+    return undefined;
+  }
+
+  return `${data.type}:${data.caseId}:${relayKey}`;
+}
+
 export async function enqueueRelayJob(data: RelayJobData) {
   const queue = getRelayQueue();
   if (!queue) {
@@ -72,10 +89,27 @@ export async function enqueueRelayJob(data: RelayJobData) {
     };
   }
 
-  const job = await queue.add(data.type, data, defaultJobOptions);
+  const jobId = buildRelayJobId(data);
+  if (jobId) {
+    const existing = await queue.getJob(jobId);
+    if (existing) {
+      return {
+        queued: true,
+        jobId: existing.id != null ? String(existing.id) : jobId,
+        duplicate: true
+      };
+    }
+  }
+
+  const job = await queue.add(data.type, data, {
+    ...defaultJobOptions,
+    ...(jobId ? { jobId } : {})
+  });
+
   return {
     queued: true,
-    jobId: String(job.id)
+    jobId: String(job.id),
+    duplicate: false
   };
 }
 

@@ -39,9 +39,10 @@ type BuildTriageAssessmentInput = {
   patientState: string;
   aiEnabled: boolean;
   provider?: TriageAIProvider;
+  minAIConfidence?: number;
 };
 
-const MIN_AI_CONFIDENCE = 0.45;
+const DEFAULT_MIN_AI_CONFIDENCE = 0.45;
 const EMERGENCY_OVERRIDE_SIGNALS = [
   "unconscious",
   "passed out",
@@ -147,6 +148,13 @@ function withFallback(
 
 export async function buildTriageAssessment(input: BuildTriageAssessmentInput): Promise<TriageAssessment> {
   const heuristic = buildHeuristicAssessment(input.messageText, input.patientState);
+  const minAIConfidence =
+    typeof input.minAIConfidence === "number" &&
+    Number.isFinite(input.minAIConfidence) &&
+    input.minAIConfidence >= 0 &&
+    input.minAIConfidence <= 1
+      ? input.minAIConfidence
+      : DEFAULT_MIN_AI_CONFIDENCE;
 
   if (!input.aiEnabled) {
     return withFallback(heuristic, "AI_DISABLED");
@@ -164,11 +172,11 @@ export async function buildTriageAssessment(input: BuildTriageAssessmentInput): 
     });
 
     const confidence = clampConfidence(Number(suggestion.confidence ?? 0));
-    if (confidence < MIN_AI_CONFIDENCE) {
+    if (confidence < minAIConfidence) {
       return withFallback(
         heuristic,
         "AI_LOW_CONFIDENCE",
-        `AI fallback to heuristic: low confidence (${Math.round(confidence * 100)}%)`
+        `AI fallback to heuristic: low confidence (${Math.round(confidence * 100)}% < ${Math.round(minAIConfidence * 100)}%)`
       );
     }
 

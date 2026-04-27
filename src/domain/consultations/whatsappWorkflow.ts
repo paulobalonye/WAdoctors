@@ -140,12 +140,14 @@ export async function buildWhatsAppWorkflowPreviewWithAI(params: {
   patientState: string;
   aiEnabled: boolean;
   provider?: TriageAIProvider;
+  minAIConfidence?: number;
 }): Promise<WhatsAppWorkflowPreview> {
   const assessment = await buildTriageAssessment({
     messageText: params.messageText,
     patientState: params.patientState,
     aiEnabled: params.aiEnabled,
-    provider: params.provider
+    provider: params.provider,
+    minAIConfidence: params.minAIConfidence
   });
 
   return buildWorkflowFromAssessment({

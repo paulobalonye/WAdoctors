@@ -5,8 +5,14 @@ import { getRelayQueue } from "../../queues/relayQueue.js";
 import { hashPortalPassword } from "../auth/authService.js";
 import { defaultDoctorAvailability } from "../cases/doctorAvailability.js";
 import { buildWhatsAppWorkflowPreviewWithAI } from "../consultations/whatsappWorkflow.js";
+import { dispatchDoctorToWhatsApp, dispatchPatientToWebex } from "../messages/relayDispatcher.js";
 import { buildCaseTriageView } from "./caseTriageView.js";
-import { triageAIEnabled, triageAIProvider } from "../triage/runtime.js";
+import {
+  triageAIEnabled,
+  triageAIMinConfidence,
+  triageAIPromptVersion,
+  triageAIProvider
+} from "../triage/runtime.js";
 import { buildRelayQueueDisabledSummary, buildRelayQueueHealthSummary } from "./relayHealth.js";
 import { buildIntegrationStatus } from "./integrationStatus.js";
 import {
@@ -145,7 +151,9 @@ export function getAdminIntegrationStatus() {
       enabled: aiEnabled,
       provider: "openai",
       apiKey: env.OPENAI_API_KEY,
-      model: env.OPENAI_TRIAGE_MODEL
+      model: env.OPENAI_TRIAGE_MODEL,
+      promptVersion: triageAIPromptVersion,
+      minConfidence: triageAIMinConfidence
     },
     whatsapp: {
       webhookSecret: env.WHATSAPP_WEBHOOK_SECRET,
@@ -633,13 +641,19 @@ export async function evaluateAdminTriage(params: {
     messageText: params.messageText,
     patientState: (params.patientState || env.LAUNCH_STATE).trim().toUpperCase(),
     aiEnabled: triageAIEnabled,
-    provider: triageAIProvider
+    provider: triageAIProvider,
+    minAIConfidence: triageAIMinConfidence
   });
 
   return {
     launchState: env.LAUNCH_STATE,
     evaluatedState: (params.patientState || env.LAUNCH_STATE).trim().toUpperCase(),
     aiEnabled: triageAIEnabled,
+    aiConfig: {
+      model: env.OPENAI_TRIAGE_MODEL,
+      promptVersion: triageAIPromptVersion,
+      minConfidence: triageAIMinConfidence
+    },
     triage: {
       source: workflow.triageSource,
       urgencyScore: workflow.urgencyScore,
@@ -862,5 +876,144 @@ export async function listAdminFailedRelayJobs(params: {
   return {
     ok: true,
     ...result
+  };
+}
+
+export async function replayAdminCaseRelay(params: {
+  caseId: string;
+  direction: "PATIENT_TO_WEBEX" | "DOCTOR_TO_WHATSAPP";
+  actorId: string;
+  messageId?: string;
+}) {
+  const caseId = params.caseId.trim();
+  const sourceMessageId = params.messageId?.trim();
+
+  const triageCase = await prisma.triageCase.findUnique({
+    where: { id: caseId },
+    include: {
+      patient: {
+        select: {
+          whatsappPhone: true
+        }
+      }
+    }
+  });
+
+  if (!triageCase) {
+    throw new Error("Case not found");
+  }
+
+  if (params.direction === "PATIENT_TO_WEBEX") {
+    const sourceMessage = await prisma.message.findFirst({
+      where: {
+        caseId,
+        senderType: "PATIENT",
+        platform: "WHATSAPP",
+        ...(sourceMessageId ? { id: sourceMessageId } : {})
+      },
+      orderBy: {
+        createdAt: "desc"
+      }
+    });
+
+    const text = String(sourceMessage?.content || "").trim();
+    if (!sourceMessage || !text) {
+      throw new Error("No patient WhatsApp message found for replay");
+    }
+
+    const dispatch = await dispatchPatientToWebex({
+      caseId,
+      patientPhone: triageCase.patient.whatsappPhone,
+      text,
+      relayKey: sourceMessage.id
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        tableName: "triage_cases",
+        recordId: caseId,
+        action: "UPDATE",
+        actorId: params.actorId,
+        actorType: "ADMIN",
+        oldValues: Prisma.JsonNull,
+        newValues: {
+          action: "REPLAY_RELAY",
+          direction: params.direction,
+          sourceMessageId: sourceMessage.id,
+          dispatched: dispatch.dispatched,
+          mode: dispatch.mode,
+          duplicate: dispatch.duplicate ?? false,
+          reason: dispatch.reason ?? null
+        }
+      }
+    });
+
+    return {
+      caseId,
+      direction: params.direction,
+      sourceMessageId: sourceMessage.id,
+      dispatched: dispatch.dispatched,
+      mode: dispatch.mode,
+      jobId: dispatch.jobId,
+      duplicate: dispatch.duplicate ?? false,
+      reason: dispatch.reason
+    };
+  }
+
+  const sourceMessage = await prisma.message.findFirst({
+    where: {
+      caseId,
+      senderType: {
+        in: ["DOCTOR", "SYSTEM"]
+      },
+      platform: "WEBEX",
+      ...(sourceMessageId ? { id: sourceMessageId } : {})
+    },
+    orderBy: {
+      createdAt: "desc"
+    }
+  });
+
+  const baseText = String(sourceMessage?.content || "").trim();
+  if (!sourceMessage || !baseText) {
+    throw new Error("No doctor Webex message found for replay");
+  }
+
+  const doctorText = /^doctor:\s+/i.test(baseText) ? baseText : `Doctor: ${baseText}`;
+  const dispatch = await dispatchDoctorToWhatsApp({
+    caseId,
+    doctorText,
+    relayKey: sourceMessage.id
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      tableName: "triage_cases",
+      recordId: caseId,
+      action: "UPDATE",
+      actorId: params.actorId,
+      actorType: "ADMIN",
+      oldValues: Prisma.JsonNull,
+      newValues: {
+        action: "REPLAY_RELAY",
+        direction: params.direction,
+        sourceMessageId: sourceMessage.id,
+        dispatched: dispatch.dispatched,
+        mode: dispatch.mode,
+        duplicate: dispatch.duplicate ?? false,
+        reason: dispatch.reason ?? null
+      }
+    }
+  });
+
+  return {
+    caseId,
+    direction: params.direction,
+    sourceMessageId: sourceMessage.id,
+    dispatched: dispatch.dispatched,
+    mode: dispatch.mode,
+    jobId: dispatch.jobId,
+    duplicate: dispatch.duplicate ?? false,
+    reason: dispatch.reason
   };
 }

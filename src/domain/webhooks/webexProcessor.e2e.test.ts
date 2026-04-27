@@ -167,4 +167,74 @@ describe("processWebexWebhookPayload e2e", () => {
       body: "Doctor: Please monitor symptoms and hydrate well."
     });
   });
+
+  it("ignores relayed patient echo text to prevent loops", async () => {
+    const token = uniqueToken();
+    const roomId = `room-loop-${token}`;
+    const phone = `+1557${token.replace(/[^0-9]/g, "").slice(0, 8)}`;
+
+    const fetchMessageMock = vi.mocked(fetchWebexMessageById);
+    const sendWhatsAppMock = vi.mocked(sendWhatsAppTextMessage);
+
+    fetchMessageMock.mockResolvedValue({
+      id: `webex-message-loop-${token}`,
+      roomId,
+      text: `Patient ${phone}: still dizzy and weak`,
+      personId: `person-loop-${token}`
+    });
+
+    const patient = await prisma.patient.create({
+      data: {
+        whatsappPhone: phone,
+        fullName: "Patient Loop Guard"
+      }
+    });
+    createdPatientIds.push(patient.id);
+
+    const doctor = await prisma.doctor.create({
+      data: {
+        email: `webex-loop-${token}@test.local`,
+        fullName: "Dr Loop Guard",
+        npiNumber: `loop-npi-${token}`,
+        isActive: true,
+        kycStatus: DoctorKycStatus.APPROVED
+      }
+    });
+    createdDoctorIds.push(doctor.id);
+
+    const triageCase = await prisma.triageCase.create({
+      data: {
+        patientId: patient.id,
+        assignedDoctorId: doctor.id,
+        status: CaseStatus.IN_PROGRESS,
+        webexSpaceId: roomId,
+        chiefComplaint: "Follow-up",
+        startedAt: new Date()
+      }
+    });
+    createdCaseIds.push(triageCase.id);
+
+    const payload = {
+      id: `webhook-event-loop-${token}`,
+      resource: "messages",
+      event: "created",
+      data: {
+        id: `webex-message-loop-${token}`,
+        roomId,
+        personId: `person-loop-${token}`
+      }
+    };
+
+    const result = await processWebexWebhookPayload(payload);
+    expect(result).toEqual({
+      processed: false,
+      reason: "Ignoring relayed patient message echo"
+    });
+
+    const messages = await prisma.message.findMany({
+      where: { caseId: triageCase.id }
+    });
+    expect(messages).toHaveLength(0);
+    expect(sendWhatsAppMock).not.toHaveBeenCalled();
+  });
 });

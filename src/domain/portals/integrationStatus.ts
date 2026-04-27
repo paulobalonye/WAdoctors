@@ -29,6 +29,8 @@ export type IntegrationStatusResult = {
     enabled: boolean;
     provider: "openai";
     model: string;
+    promptVersion: string;
+    minConfidence: number;
   };
   whatsapp: IntegrationStatusEntry;
   webex: IntegrationStatusEntry;
@@ -46,6 +48,8 @@ export function buildIntegrationStatus(params: {
     provider: "openai";
     apiKey: string | undefined;
     model: string;
+    promptVersion: string;
+    minConfidence: number;
   };
   whatsapp: {
     webhookSecret: string | undefined;
@@ -106,7 +110,12 @@ export function buildIntegrationStatus(params: {
   const aiTriageEntry = buildEntry({
     required: aiRequired,
     notes: params.aiTriage.enabled
-      ? [`provider=${params.aiTriage.provider}`, `model=${params.aiTriage.model}`]
+      ? [
+          `provider=${params.aiTriage.provider}`,
+          `model=${params.aiTriage.model}`,
+          `promptVersion=${params.aiTriage.promptVersion}`,
+          `minConfidence=${params.aiTriage.minConfidence}`
+        ]
       : ["AI triage disabled"]
   });
 
@@ -114,7 +123,9 @@ export function buildIntegrationStatus(params: {
     ...aiTriageEntry,
     enabled: params.aiTriage.enabled,
     provider: params.aiTriage.provider,
-    model: params.aiTriage.model
+    model: params.aiTriage.model,
+    promptVersion: params.aiTriage.promptVersion,
+    minConfidence: params.aiTriage.minConfidence
   };
 
   const entries = [whatsapp, webex, stripe, relay, aiTriage];

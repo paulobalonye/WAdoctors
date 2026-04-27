@@ -13,6 +13,10 @@ export type WebexProcessResult = {
   relayedToWhatsApp?: boolean;
 };
 
+function isRelayedPatientMessageEcho(text: string): boolean {
+  return /^patient\s+\+?[0-9][0-9\s\-().]*:/i.test(String(text || "").trim());
+}
+
 export async function processWebexWebhookPayload(payload: unknown): Promise<WebexProcessResult> {
   const event = extractWebexWebhook(payload);
 
@@ -62,6 +66,13 @@ export async function processWebexWebhookPayload(payload: unknown): Promise<Webe
     };
   }
 
+  if (isRelayedPatientMessageEcho(doctorText)) {
+    return {
+      processed: false,
+      reason: "Ignoring relayed patient message echo"
+    };
+  }
+
   await addCaseMessage({
     caseId: triageCase.id,
     senderType: "DOCTOR",
@@ -83,7 +94,8 @@ export async function processWebexWebhookPayload(payload: unknown): Promise<Webe
   const outboundText = `Doctor: ${doctorText}`;
   const relayResult = await dispatchDoctorToWhatsApp({
     caseId: triageCase.id,
-    doctorText: outboundText
+    doctorText: outboundText,
+    relayKey: event.messageId
   });
 
   return {

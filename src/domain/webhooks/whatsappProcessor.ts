@@ -3,7 +3,7 @@ import { env } from "../../config/env.js";
 import { prisma } from "../../lib/prisma.js";
 import { buildWhatsAppWorkflowPreviewWithAI } from "../consultations/whatsappWorkflow.js";
 import { buildCaseTriageStorage } from "../consultations/triageStorage.js";
-import { triageAIEnabled, triageAIProvider } from "../triage/runtime.js";
+import { triageAIEnabled, triageAIMinConfidence, triageAIProvider } from "../triage/runtime.js";
 import { assignDoctorIfNeeded } from "../cases/assignmentService.js";
 import {
   addCaseMessage,
@@ -25,6 +25,10 @@ export type WhatsAppProcessResult = {
     reason?: string;
   }>;
 };
+
+function isProbableWhatsAppRelayEcho(text: string): boolean {
+  return /^doctor:\s+/i.test(String(text || "").trim());
+}
 
 async function applyWorkflowTransitionsForNewCase(params: {
   caseId: string;
@@ -56,7 +60,8 @@ export async function processWhatsAppWebhookPayload(payload: unknown): Promise<W
         messageText: message.text,
         patientState: env.LAUNCH_STATE,
         aiEnabled: triageAIEnabled,
-        provider: triageAIProvider
+        provider: triageAIProvider,
+        minAIConfidence: triageAIMinConfidence
       });
       const triageStorage = buildCaseTriageStorage({
         triageSource: workflow.triageSource,
@@ -132,6 +137,16 @@ export async function processWhatsAppWebhookPayload(payload: unknown): Promise<W
       }
     }
 
+    if (isProbableWhatsAppRelayEcho(message.text)) {
+      caseIds.push(triageCase.id);
+      relays.push({
+        caseId: triageCase.id,
+        relayed: false,
+        reason: "Ignoring probable WhatsApp relay echo"
+      });
+      continue;
+    }
+
     await addCaseMessage({
       caseId: triageCase.id,
       senderType: "PATIENT",
@@ -160,7 +175,8 @@ export async function processWhatsAppWebhookPayload(payload: unknown): Promise<W
       const relayResult = await dispatchPatientToWebex({
         caseId: triageCase.id,
         patientPhone: patient.whatsappPhone,
-        text: message.text
+        text: message.text,
+        relayKey: message.id
       });
 
       relays.push({
