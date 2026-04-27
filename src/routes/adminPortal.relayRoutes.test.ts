@@ -145,6 +145,29 @@ describe("admin relay routes", () => {
     });
   });
 
+  it("validates triage filters on case list route", async () => {
+    (env as { NODE_ENV: "development" | "test" | "production" }).NODE_ENV = "test";
+    (env as { ALLOW_DEV_HEADER_AUTH: "true" | "false" }).ALLOW_DEV_HEADER_AUTH = "true";
+
+    const sourceRes = await request(app)
+      .get("/api/v1/admin/cases?triageSource=INVALID")
+      .set(adminHeaders())
+      .expect(400);
+
+    expect(sourceRes.body).toMatchObject({
+      error: "Invalid triage source filter"
+    });
+
+    const routeRes = await request(app)
+      .get("/api/v1/admin/cases?triageRoute=INVALID_ROUTE")
+      .set(adminHeaders())
+      .expect(400);
+
+    expect(routeRes.body).toMatchObject({
+      error: "Invalid triage route filter"
+    });
+  });
+
   it("returns structured disabled response for failed relay list in inline mode", async () => {
     (env as { NODE_ENV: "development" | "test" | "production" }).NODE_ENV = "test";
     (env as { ALLOW_DEV_HEADER_AUTH: "true" | "false" }).ALLOW_DEV_HEADER_AUTH = "true";

@@ -163,7 +163,15 @@ export function getAdminIntegrationStatus() {
   });
 }
 
-export async function listAdminCases(params: { status?: CaseStatus; limit: number }) {
+export async function listAdminCases(params: {
+  status?: CaseStatus;
+  limit: number;
+  triageSource?: "AI" | "HEURISTIC";
+  triageRoute?: "ROUTE_TO_DOCTOR" | "SEND_SELF_CARE" | "ESCALATE_EMERGENCY" | "OUT_OF_STATE";
+}) {
+  const safeLimit = Math.min(Math.max(params.limit, 1), 200);
+  const fetchLimit = Math.min(Math.max(safeLimit * 5, safeLimit), 500);
+
   const cases = await prisma.triageCase.findMany({
     where: {
       ...(params.status ? { status: params.status } : {})
@@ -187,16 +195,30 @@ export async function listAdminCases(params: { status?: CaseStatus; limit: numbe
     orderBy: {
       createdAt: "desc"
     },
-    take: params.limit
+    take: fetchLimit
   });
 
-  return cases.map((item) => ({
+  const mapped = cases.map((item) => ({
     ...item,
     triage: buildCaseTriageView({
       aiSummary: item.aiSummary,
       aiTranscript: item.aiTranscript
     })
   }));
+
+  const filtered = mapped.filter((item) => {
+    if (params.triageSource && item.triage?.source !== params.triageSource) {
+      return false;
+    }
+
+    if (params.triageRoute && item.triage?.route !== params.triageRoute) {
+      return false;
+    }
+
+    return true;
+  });
+
+  return filtered.slice(0, safeLimit);
 }
 
 export async function getAdminCase(caseId: string) {

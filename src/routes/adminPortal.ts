@@ -39,6 +39,13 @@ const caseStatusSchema = z.nativeEnum({
   COMPLETED: "COMPLETED",
   ESCALATED: "ESCALATED"
 } as const).optional();
+const triageSourceSchema = z.enum(["AI", "HEURISTIC"]).optional();
+const triageRouteSchema = z.enum([
+  "ROUTE_TO_DOCTOR",
+  "SEND_SELF_CARE",
+  "ESCALATE_EMERGENCY",
+  "OUT_OF_STATE"
+]).optional();
 
 const doctorActiveBodySchema = z.object({
   isActive: z.boolean()
@@ -182,10 +189,22 @@ adminPortalRouter.get("/cases", async (req: AuthedRequest, res: Response) => {
       res.status(400).json({ error: "Invalid case status filter" });
       return;
     }
+    const parsedTriageSource = triageSourceSchema.safeParse(req.query.triageSource);
+    if (!parsedTriageSource.success) {
+      res.status(400).json({ error: "Invalid triage source filter" });
+      return;
+    }
+    const parsedTriageRoute = triageRouteSchema.safeParse(req.query.triageRoute);
+    if (!parsedTriageRoute.success) {
+      res.status(400).json({ error: "Invalid triage route filter" });
+      return;
+    }
 
     const data = await listAdminCases({
       status: parsedStatus.data as CaseStatus | undefined,
-      limit: parseLimit(req.query.limit, 100)
+      limit: parseLimit(req.query.limit, 100),
+      triageSource: parsedTriageSource.data,
+      triageRoute: parsedTriageRoute.data
     });
 
     res.status(200).json(data);

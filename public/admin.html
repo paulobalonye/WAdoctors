@@ -184,6 +184,24 @@
               <label for="adminCaseLimit">Limit</label>
               <input id="adminCaseLimit" type="number" min="1" max="200" value="100" />
             </div>
+            <div class="field">
+              <label for="adminCaseTriageSourceFilter">Triage Source</label>
+              <select id="adminCaseTriageSourceFilter">
+                <option value="">All</option>
+                <option value="AI">AI</option>
+                <option value="HEURISTIC">HEURISTIC</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="adminCaseTriageRouteFilter">Triage Route</label>
+              <select id="adminCaseTriageRouteFilter">
+                <option value="">All</option>
+                <option value="ROUTE_TO_DOCTOR">ROUTE_TO_DOCTOR</option>
+                <option value="SEND_SELF_CARE">SEND_SELF_CARE</option>
+                <option value="ESCALATE_EMERGENCY">ESCALATE_EMERGENCY</option>
+                <option value="OUT_OF_STATE">OUT_OF_STATE</option>
+              </select>
+            </div>
             <div class="btnrow" style="align-items: end">
               <button id="refreshAdminCasesBtn">Refresh Cases</button>
             </div>

@@ -45,6 +45,8 @@ const createAdminUserBtn = byId("createAdminUserBtn");
 
 const adminCaseStatusFilter = byId("adminCaseStatusFilter");
 const adminCaseLimit = byId("adminCaseLimit");
+const adminCaseTriageSourceFilter = byId("adminCaseTriageSourceFilter");
+const adminCaseTriageRouteFilter = byId("adminCaseTriageRouteFilter");
 const refreshAdminCasesBtn = byId("refreshAdminCasesBtn");
 const adminCasesTableBody = byId("adminCasesTableBody");
 const adminCaseStatusUpdate = byId("adminCaseStatusUpdate");
@@ -844,9 +846,17 @@ async function loadDoctors() {
 async function loadCases() {
   const status = adminCaseStatusFilter.value;
   const limit = adminCaseLimit.value.trim() || "100";
+  const triageSource = adminCaseTriageSourceFilter.value;
+  const triageRoute = adminCaseTriageRouteFilter.value;
   const query = new URLSearchParams();
   if (status) {
     query.set("status", status);
+  }
+  if (triageSource) {
+    query.set("triageSource", triageSource);
+  }
+  if (triageRoute) {
+    query.set("triageRoute", triageRoute);
   }
   query.set("limit", limit);
 
@@ -1150,6 +1160,8 @@ clearAdminSessionBtn.addEventListener("click", () => {
   adminRelayHealthGrid.innerHTML = "";
   adminRelayHealthNote.textContent = "";
   adminRelayFailedJobsBody.innerHTML = "";
+  adminCaseTriageSourceFilter.value = "";
+  adminCaseTriageRouteFilter.value = "";
   adminRelayCaseId.value = "";
   adminRelayFailedName.value = "";
   adminRelayInjectDirection.value = "PATIENT_TO_WEBEX";
@@ -1376,6 +1388,22 @@ adminCaseStatusFilter.addEventListener("change", async () => {
     await loadCases();
   } catch (error) {
     setStatus(adminStatusBar, error.message || "Failed to apply case filter", "error");
+  }
+});
+
+adminCaseTriageSourceFilter.addEventListener("change", async () => {
+  try {
+    await loadCases();
+  } catch (error) {
+    setStatus(adminStatusBar, error.message || "Failed to apply triage source filter", "error");
+  }
+});
+
+adminCaseTriageRouteFilter.addEventListener("change", async () => {
+  try {
+    await loadCases();
+  } catch (error) {
+    setStatus(adminStatusBar, error.message || "Failed to apply triage route filter", "error");
   }
 });
 
