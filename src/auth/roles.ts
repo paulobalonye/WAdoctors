@@ -59,6 +59,10 @@ function parseJwtAuth(token: string): AuthContext | null {
   }
 }
 
+export function isDevHeaderAuthEnabled(): boolean {
+  return env.ALLOW_DEV_HEADER_AUTH === "true" && env.NODE_ENV !== "production";
+}
+
 export function devAuthMiddleware(req: AuthedRequest, res: Response, next: NextFunction): void {
   const bearerToken = parseBearerToken(req.header("authorization") ?? undefined);
   if (bearerToken) {
@@ -73,7 +77,7 @@ export function devAuthMiddleware(req: AuthedRequest, res: Response, next: NextF
     return;
   }
 
-  if (env.ALLOW_DEV_HEADER_AUTH !== "true") {
+  if (!isDevHeaderAuthEnabled()) {
     res.status(401).json({
       error: "Authorization required"
     });
