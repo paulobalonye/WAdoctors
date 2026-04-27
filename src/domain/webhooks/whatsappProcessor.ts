@@ -83,6 +83,15 @@ export async function processWhatsAppWebhookPayload(payload: unknown): Promise<W
         aiTranscript: triageStorage.aiTranscript
       });
 
+      await addCaseMessage({
+        caseId: triageCase.id,
+        senderType: "SYSTEM",
+        senderId: "SYSTEM_TRIAGE",
+        platform: "WHATSAPP",
+        phiScope: "POSSIBLE",
+        content: `Triage note: ${triageStorage.aiSummary}`.slice(0, 2000)
+      });
+
       const transitions = workflow.transitions.slice(1).map((item) => ({
         to: item.to,
         reason: item.reason
