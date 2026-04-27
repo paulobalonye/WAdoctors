@@ -5,9 +5,80 @@ import { getRelayQueue } from "../../queues/relayQueue.js";
 import { hashPortalPassword } from "../auth/authService.js";
 import { defaultDoctorAvailability } from "../cases/doctorAvailability.js";
 import { buildRelayQueueDisabledSummary, buildRelayQueueHealthSummary } from "./relayHealth.js";
+import {
+  clearFailedRelayJobs,
+  retryRecentFailedRelayJobs,
+  retrySingleFailedRelayJob,
+  type RelayQueueAdapter
+} from "./relayOperations.js";
 import { buildWebhookSummary } from "./webhookSummary.js";
 
 const ACTIVE_CASE_STATUSES: CaseStatus[] = ["NEW", "TRIAGING", "ASSIGNED", "IN_PROGRESS", "ESCALATED"];
+type RelayQueueInstance = NonNullable<ReturnType<typeof getRelayQueue>>;
+
+function getRelayQueueAccess():
+  | {
+      queue: RelayQueueInstance;
+    }
+  | {
+      reason: string;
+    } {
+  if (env.RELAY_DISPATCH_MODE !== "queue") {
+    return { reason: "Relay queue disabled because dispatch mode is inline" };
+  }
+
+  if (!env.REDIS_URL) {
+    return { reason: "Relay queue unavailable because REDIS_URL is not configured" };
+  }
+
+  const queue = getRelayQueue();
+  if (!queue) {
+    return { reason: "Relay queue unavailable" };
+  }
+
+  return { queue };
+}
+
+function buildRelayQueueAdapter(queue: RelayQueueInstance): RelayQueueAdapter {
+  return {
+    getJobById: async (jobId) => {
+      const job = await queue.getJob(jobId);
+      if (!job) {
+        return null;
+      }
+
+      return {
+        id: job.id != null ? String(job.id) : null,
+        name: job.name,
+        failedReason: job.failedReason,
+        attemptsMade: job.attemptsMade,
+        finishedOn: job.finishedOn,
+        timestamp: job.timestamp,
+        getState: async () => job.getState(),
+        retry: async () => {
+          await job.retry();
+        }
+      };
+    },
+    getFailedJobs: async (limit) => {
+      const safeLimit = Math.min(Math.max(limit, 1), 50);
+      const jobs = await queue.getJobs(["failed"], 0, safeLimit - 1, false);
+      return jobs.map((job) => ({
+        id: job.id != null ? String(job.id) : null,
+        name: job.name,
+        failedReason: job.failedReason,
+        attemptsMade: job.attemptsMade,
+        finishedOn: job.finishedOn,
+        timestamp: job.timestamp,
+        getState: async () => job.getState(),
+        retry: async () => {
+          await job.retry();
+        }
+      }));
+    },
+    cleanFailed: async (graceMs, limit) => queue.clean(graceMs, limit, "failed")
+  };
+}
 
 export async function getAdminOverview() {
   const [patients, doctors, activeDoctors, totalCases, openCases, completedCases] = await Promise.all([
@@ -372,21 +443,13 @@ export async function getWebhookSummary(windowHours: number) {
 }
 
 export async function getRelayQueueHealth(failedLimit: number) {
-  if (env.RELAY_DISPATCH_MODE !== "queue") {
-    return buildRelayQueueDisabledSummary("Relay queue disabled because dispatch mode is inline");
-  }
-
-  if (!env.REDIS_URL) {
-    return buildRelayQueueDisabledSummary("Relay queue unavailable because REDIS_URL is not configured");
-  }
-
-  const queue = getRelayQueue();
-  if (!queue) {
-    return buildRelayQueueDisabledSummary("Relay queue unavailable");
+  const access = getRelayQueueAccess();
+  if ("reason" in access) {
+    return buildRelayQueueDisabledSummary(access.reason);
   }
 
   try {
-    const counts = await queue.getJobCounts(
+    const counts = await access.queue.getJobCounts(
       "waiting",
       "active",
       "delayed",
@@ -396,7 +459,7 @@ export async function getRelayQueueHealth(failedLimit: number) {
     );
 
     const safeLimit = Math.min(Math.max(failedLimit, 1), 50);
-    const failedJobs = await queue.getJobs(["failed"], 0, safeLimit - 1, false);
+    const failedJobs = await access.queue.getJobs(["failed"], 0, safeLimit - 1, false);
 
     return buildRelayQueueHealthSummary({
       dispatchMode: env.RELAY_DISPATCH_MODE,
@@ -436,5 +499,71 @@ export async function getRelayQueueHealth(failedLimit: number) {
       },
       failedJobs: []
     });
+  }
+}
+
+export async function retryAdminRelayFailedJob(jobId: string) {
+  const access = getRelayQueueAccess();
+  if ("reason" in access) {
+    return {
+      ok: false,
+      jobId: jobId.trim(),
+      retried: false,
+      reason: access.reason
+    };
+  }
+
+  const adapter = buildRelayQueueAdapter(access.queue);
+  return retrySingleFailedRelayJob(adapter, jobId);
+}
+
+export async function retryAdminRecentFailedRelayJobs(limit: number) {
+  const access = getRelayQueueAccess();
+  if ("reason" in access) {
+    return {
+      ok: false,
+      requestedLimit: Math.min(Math.max(limit, 1), 50),
+      examined: 0,
+      retried: 0,
+      failed: 0,
+      failures: [] as Array<{ jobId: string; reason: string }>,
+      reason: access.reason
+    };
+  }
+
+  const adapter = buildRelayQueueAdapter(access.queue);
+  const result = await retryRecentFailedRelayJobs(adapter, limit);
+  return {
+    ...result,
+    reason: result.ok ? undefined : result.failures[0]?.reason
+  };
+}
+
+export async function clearAdminFailedRelayJobs(params: { limit: number; graceSeconds: number }) {
+  const access = getRelayQueueAccess();
+  if ("reason" in access) {
+    return {
+      ok: false,
+      limit: Math.min(Math.max(params.limit, 1), 200),
+      graceSeconds: Math.min(Math.max(params.graceSeconds, 0), 7 * 24 * 60 * 60),
+      removedCount: 0,
+      removedJobIds: [] as string[],
+      reason: access.reason
+    };
+  }
+
+  try {
+    const adapter = buildRelayQueueAdapter(access.queue);
+    return await clearFailedRelayJobs(adapter, params);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "Failed to clear failed relay jobs";
+    return {
+      ok: false,
+      limit: Math.min(Math.max(params.limit, 1), 200),
+      graceSeconds: Math.min(Math.max(params.graceSeconds, 0), 7 * 24 * 60 * 60),
+      removedCount: 0,
+      removedJobIds: [] as string[],
+      reason
+    };
   }
 }

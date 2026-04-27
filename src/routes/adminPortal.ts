@@ -6,6 +6,7 @@ import {
   assignAdminCaseDoctor,
   createAdminDoctor,
   createAdminUser,
+  clearAdminFailedRelayJobs,
   getRelayQueueHealth,
   getWebhookSummary,
   getAdminOverview,
@@ -14,6 +15,8 @@ import {
   listAdminCases,
   listAdminDoctors,
   listRecentWebhookEvents,
+  retryAdminRelayFailedJob,
+  retryAdminRecentFailedRelayJobs,
   resetDoctorPortalPassword,
   setDoctorSchedule,
   setAdminCaseStatus,
@@ -80,6 +83,15 @@ const caseStatusBodySchema = z.object({
 
 const caseAssignBodySchema = z.object({
   doctorId: z.string().nullable()
+});
+
+const retryRecentRelayBodySchema = z.object({
+  limit: z.number().int().min(1).max(50).optional()
+});
+
+const clearFailedRelayBodySchema = z.object({
+  limit: z.number().int().min(1).max(200).optional(),
+  graceSeconds: z.number().int().min(0).max(7 * 24 * 60 * 60).optional()
 });
 
 function parseLimit(value: unknown, fallback = 50): number {
@@ -368,6 +380,55 @@ adminPortalRouter.get("/relay/health", async (req: AuthedRequest, res: Response)
   try {
     const health = await getRelayQueueHealth(parseFailedLimit(req.query.failedLimit, 20));
     res.status(200).json(health);
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+adminPortalRouter.post("/relay/failed/:jobId/retry", async (req: AuthedRequest, res: Response) => {
+  try {
+    const jobId = req.params.jobId?.trim();
+    if (!jobId) {
+      res.status(400).json({ error: "jobId is required" });
+      return;
+    }
+
+    const result = await retryAdminRelayFailedJob(jobId);
+    res.status(200).json(result);
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+adminPortalRouter.post("/relay/failed/retry", async (req: AuthedRequest, res: Response) => {
+  try {
+    const body = retryRecentRelayBodySchema.safeParse(req.body ?? {});
+    if (!body.success) {
+      res.status(400).json({ error: "Invalid body", details: body.error.flatten().fieldErrors });
+      return;
+    }
+
+    const result = await retryAdminRecentFailedRelayJobs(body.data.limit ?? 10);
+    res.status(200).json(result);
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+adminPortalRouter.post("/relay/failed/clear", async (req: AuthedRequest, res: Response) => {
+  try {
+    const body = clearFailedRelayBodySchema.safeParse(req.body ?? {});
+    if (!body.success) {
+      res.status(400).json({ error: "Invalid body", details: body.error.flatten().fieldErrors });
+      return;
+    }
+
+    const result = await clearAdminFailedRelayJobs({
+      limit: body.data.limit ?? 100,
+      graceSeconds: body.data.graceSeconds ?? 300
+    });
+
+    res.status(200).json(result);
   } catch (error) {
     handleError(res, error);
   }

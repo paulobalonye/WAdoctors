@@ -112,6 +112,9 @@ pnpm worker:relay
 - `GET /api/v1/admin/webhooks`
 - `GET /api/v1/admin/webhooks/summary`
 - `GET /api/v1/admin/relay/health`
+- `POST /api/v1/admin/relay/failed/:jobId/retry`
+- `POST /api/v1/admin/relay/failed/retry`
+- `POST /api/v1/admin/relay/failed/clear`
 
 ## Portal auth
 

@@ -1,0 +1,126 @@
+import { describe, expect, it, vi } from "vitest";
+import {
+  clearFailedRelayJobs,
+  retryRecentFailedRelayJobs,
+  retrySingleFailedRelayJob,
+  type RelayQueueAdapter
+} from "./relayOperations.js";
+
+function buildFailedJob(params: {
+  id: string;
+  state?: string;
+  retryImpl?: () => Promise<void>;
+}) {
+  const retry = vi.fn(async () => {
+    if (params.retryImpl) {
+      await params.retryImpl();
+    }
+  });
+
+  return {
+    id: params.id,
+    name: "PATIENT_TO_WEBEX",
+    failedReason: "No Webex room configured",
+    attemptsMade: 3,
+    finishedOn: 1710000000000,
+    timestamp: 1709000000000,
+    getState: vi.fn(async () => params.state ?? "failed"),
+    retry
+  };
+}
+
+describe("retrySingleFailedRelayJob", () => {
+  it("returns not found when job id does not exist", async () => {
+    const adapter: RelayQueueAdapter = {
+      getJobById: async () => null,
+      getFailedJobs: async () => [],
+      cleanFailed: async () => []
+    };
+
+    const result = await retrySingleFailedRelayJob(adapter, "missing-job");
+
+    expect(result).toEqual({
+      ok: false,
+      jobId: "missing-job",
+      retried: false,
+      reason: "Relay job not found"
+    });
+  });
+
+  it("retries only failed jobs", async () => {
+    const queuedJob = buildFailedJob({ id: "job-1", state: "active" });
+    const adapter: RelayQueueAdapter = {
+      getJobById: async () => queuedJob,
+      getFailedJobs: async () => [],
+      cleanFailed: async () => []
+    };
+
+    const result = await retrySingleFailedRelayJob(adapter, "job-1");
+
+    expect(result.ok).toBe(false);
+    expect(result.retried).toBe(false);
+    expect(result.reason).toContain("not failed");
+    expect(queuedJob.retry).not.toHaveBeenCalled();
+  });
+});
+
+describe("retryRecentFailedRelayJobs", () => {
+  it("retries recent failed jobs and reports failures", async () => {
+    const first = buildFailedJob({ id: "job-1" });
+    const second = buildFailedJob({
+      id: "job-2",
+      retryImpl: async () => {
+        throw new Error("retry failed");
+      }
+    });
+
+    const adapter: RelayQueueAdapter = {
+      getJobById: async () => null,
+      getFailedJobs: async () => [first, second],
+      cleanFailed: async () => []
+    };
+
+    const result = await retryRecentFailedRelayJobs(adapter, 10);
+
+    expect(result.ok).toBe(false);
+    expect(result.requestedLimit).toBe(10);
+    expect(result.examined).toBe(2);
+    expect(result.retried).toBe(1);
+    expect(result.failed).toBe(1);
+    expect(result.failures).toEqual([
+      {
+        jobId: "job-2",
+        reason: "retry failed"
+      }
+    ]);
+  });
+});
+
+describe("clearFailedRelayJobs", () => {
+  it("passes normalized grace/limit to adapter clean and returns removed ids", async () => {
+    const cleanFailed = vi.fn(async (graceMs: number, limit: number) => {
+      expect(graceMs).toBe(30000);
+      expect(limit).toBe(12);
+      return ["job-7", "job-8"];
+    });
+
+    const adapter: RelayQueueAdapter = {
+      getJobById: async () => null,
+      getFailedJobs: async () => [],
+      cleanFailed
+    };
+
+    const result = await clearFailedRelayJobs(adapter, {
+      limit: 12,
+      graceSeconds: 30
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      limit: 12,
+      graceSeconds: 30,
+      removedCount: 2,
+      removedJobIds: ["job-7", "job-8"]
+    });
+  });
+});

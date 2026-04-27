@@ -59,7 +59,10 @@ const adminWebhookWindowHours = byId("adminWebhookWindowHours");
 const adminWebhookSummaryGrid = byId("adminWebhookSummaryGrid");
 const adminWebhookTableBody = byId("adminWebhookTableBody");
 const adminRelayFailedLimit = byId("adminRelayFailedLimit");
+const adminRelayClearGraceSeconds = byId("adminRelayClearGraceSeconds");
 const refreshRelayHealthBtn = byId("refreshRelayHealthBtn");
+const retryRecentRelayFailedBtn = byId("retryRecentRelayFailedBtn");
+const clearRelayFailedBtn = byId("clearRelayFailedBtn");
 const adminRelayHealthGrid = byId("adminRelayHealthGrid");
 const adminRelayHealthNote = byId("adminRelayHealthNote");
 const adminRelayFailedJobsBody = byId("adminRelayFailedJobsBody");
@@ -396,7 +399,7 @@ function renderRelayHealth(health) {
   if (!health || !health.counts) {
     adminRelayHealthGrid.innerHTML = `<div class="muted">Relay health unavailable.</div>`;
     adminRelayHealthNote.textContent = "Unable to load relay health.";
-    adminRelayFailedJobsBody.innerHTML = `<tr><td colspan="5" class="muted">No failed relay jobs.</td></tr>`;
+    adminRelayFailedJobsBody.innerHTML = `<tr><td colspan="6" class="muted">No failed relay jobs.</td></tr>`;
     return;
   }
 
@@ -449,12 +452,13 @@ function renderRelayHealth(health) {
 
   const failedJobs = Array.isArray(health.failedRecent) ? health.failedRecent : [];
   if (!failedJobs.length) {
-    adminRelayFailedJobsBody.innerHTML = `<tr><td colspan="5" class="muted">No failed relay jobs.</td></tr>`;
+    adminRelayFailedJobsBody.innerHTML = `<tr><td colspan="6" class="muted">No failed relay jobs.</td></tr>`;
     return;
   }
 
   adminRelayFailedJobsBody.innerHTML = failedJobs
     .map((job) => {
+      const retryDisabled = !job.jobId || job.jobId === "unknown";
       return `
         <tr>
           <td>${escapeHtml(job.jobId || "unknown")}</td>
@@ -462,10 +466,36 @@ function renderRelayHealth(health) {
           <td>${escapeHtml(String(job.attemptsMade ?? 0))}</td>
           <td>${escapeHtml(formatDateTime(job.failedAt))}</td>
           <td>${escapeHtml(job.failedReason || "-")}</td>
+          <td>
+            <button class="secondary relay-retry-btn" data-job-id="${escapeHtml(job.jobId || "")}" ${retryDisabled ? "disabled" : ""}>Retry</button>
+          </td>
         </tr>
       `;
     })
     .join("");
+
+  adminRelayFailedJobsBody.querySelectorAll(".relay-retry-btn").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const jobId = button.getAttribute("data-job-id") || "";
+      if (!jobId) {
+        return;
+      }
+
+      try {
+        const result = await retryRelayFailedJob(jobId);
+        await loadRelayHealth();
+        setStatus(
+          adminStatusBar,
+          result.ok
+            ? `Retried relay job ${jobId}.`
+            : result.reason || `Unable to retry relay job ${jobId}.`,
+          result.ok ? "success" : "error"
+        );
+      } catch (error) {
+        setStatus(adminStatusBar, error.message || "Failed to retry relay job", "error");
+      }
+    });
+  });
 }
 
 async function loginAdmin() {
@@ -560,6 +590,47 @@ async function loadRelayHealth() {
     { headers: authHeaders() }
   );
   renderRelayHealth(data);
+}
+
+async function retryRelayFailedJob(jobId) {
+  return apiRequest(`/api/v1/admin/relay/failed/${encodeURIComponent(jobId)}/retry`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({})
+  });
+}
+
+async function retryRecentRelayFailedJobs() {
+  const failedLimit = Number.parseInt(adminRelayFailedLimit.value, 10);
+  const normalizedFailedLimit =
+    Number.isFinite(failedLimit) && failedLimit >= 1 && failedLimit <= 50 ? failedLimit : 20;
+
+  return apiRequest("/api/v1/admin/relay/failed/retry", {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({
+      limit: normalizedFailedLimit
+    })
+  });
+}
+
+async function clearRelayFailedJobs() {
+  const failedLimit = Number.parseInt(adminRelayFailedLimit.value, 10);
+  const normalizedFailedLimit =
+    Number.isFinite(failedLimit) && failedLimit >= 1 && failedLimit <= 200 ? failedLimit : 100;
+
+  const graceSeconds = Number.parseInt(adminRelayClearGraceSeconds.value, 10);
+  const normalizedGraceSeconds =
+    Number.isFinite(graceSeconds) && graceSeconds >= 0 && graceSeconds <= 604800 ? graceSeconds : 300;
+
+  return apiRequest("/api/v1/admin/relay/failed/clear", {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({
+      limit: normalizedFailedLimit,
+      graceSeconds: normalizedGraceSeconds
+    })
+  });
 }
 
 async function createDoctor() {
@@ -798,6 +869,38 @@ refreshRelayHealthBtn.addEventListener("click", async () => {
     setStatus(adminStatusBar, "Relay health refreshed.", "success");
   } catch (error) {
     setStatus(adminStatusBar, error.message || "Failed to refresh relay health", "error");
+  }
+});
+
+retryRecentRelayFailedBtn.addEventListener("click", async () => {
+  try {
+    const result = await retryRecentRelayFailedJobs();
+    await loadRelayHealth();
+    setStatus(
+      adminStatusBar,
+      result.ok
+        ? `Retried ${result.retried ?? 0} failed relay jobs (${result.failed ?? 0} failed).`
+        : result.reason || `Retried ${result.retried ?? 0} failed relay jobs (${result.failed ?? 0} failed).`,
+      result.ok ? "success" : "error"
+    );
+  } catch (error) {
+    setStatus(adminStatusBar, error.message || "Failed to retry recent relay jobs", "error");
+  }
+});
+
+clearRelayFailedBtn.addEventListener("click", async () => {
+  try {
+    const result = await clearRelayFailedJobs();
+    await loadRelayHealth();
+    setStatus(
+      adminStatusBar,
+      result.ok
+        ? `Cleared ${result.removedCount ?? 0} failed relay jobs.`
+        : result.reason || `Cleared ${result.removedCount ?? 0} failed relay jobs.`,
+      result.ok ? "success" : "error"
+    );
+  } catch (error) {
+    setStatus(adminStatusBar, error.message || "Failed to clear failed relay jobs", "error");
   }
 });
 
