@@ -48,7 +48,15 @@ async function seedDoctorUser() {
   const npiNumber = envValue("DOCTOR_BOOTSTRAP_NPI", "1234567890");
   const specialty = envValue("DOCTOR_BOOTSTRAP_SPECIALTY", "Family Medicine");
   const licenseState = envValue("DOCTOR_BOOTSTRAP_STATE", "OH").toUpperCase();
+  const maxConcurrentCases = Number.parseInt(envValue("DOCTOR_BOOTSTRAP_MAX_CONCURRENT", "3"), 10);
   const passwordHash = await hashPassword(password);
+  const availability = {
+    monday: { start: "09:00", end: "17:00" },
+    tuesday: { start: "09:00", end: "17:00" },
+    wednesday: { start: "09:00", end: "17:00" },
+    thursday: { start: "09:00", end: "17:00" },
+    friday: { start: "09:00", end: "17:00" }
+  };
 
   const doctor = await prisma.doctor.upsert({
     where: { email },
@@ -59,6 +67,8 @@ async function seedDoctorUser() {
       npiNumber,
       specialty,
       licenseState,
+      availability,
+      maxConcurrentCases: Number.isFinite(maxConcurrentCases) && maxConcurrentCases > 0 ? maxConcurrentCases : 3,
       kycStatus: DoctorKycStatus.APPROVED,
       isActive: true
     },
@@ -67,6 +77,8 @@ async function seedDoctorUser() {
       passwordHash,
       specialty,
       licenseState,
+      availability,
+      maxConcurrentCases: Number.isFinite(maxConcurrentCases) && maxConcurrentCases > 0 ? maxConcurrentCases : 3,
       kycStatus: DoctorKycStatus.APPROVED,
       isActive: true
     }

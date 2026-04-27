@@ -128,6 +128,7 @@ Development fallback (enabled by `ALLOW_DEV_HEADER_AUTH=true`):
 12. JWT login flow for Doctor and Admin portals with optional dev-header fallback.
 13. Docker-based local Postgres/Redis and Prisma seed pipeline for bootstrap users.
 14. Doctor assignment now respects schedule availability and max concurrent case limits.
+15. Baseline Prisma migration checked in at `prisma/migrations/20260426180000_init`.
 
 ## Next implementation steps
 

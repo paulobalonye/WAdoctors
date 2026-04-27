@@ -21,6 +21,7 @@ Status: Active execution plan
   - Doctor and admin portal UI pages served at `/portal/*`
   - JWT login endpoints and token-based auth for doctor/admin portals
   - Doctor assignment checks availability windows and max concurrent capacity
+  - Baseline Prisma migration generated and committed for reproducible schema setup
 
 ## 1) Product mode (locked)
 
