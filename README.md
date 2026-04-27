@@ -129,6 +129,7 @@ pnpm dev:queue
 
 Relay retry request bodies may include optional `caseId` for targeted retries.
 `/api/v1/admin/relay/dev/inject-failure` is for non-production queue-mode drills and accepts `direction` + optional `caseId`.
+Queue drill steps are documented in `docs/RELAY_QUEUE_DRILL.md`.
 
 ## Portal auth
 
