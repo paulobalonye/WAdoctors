@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   clearFailedRelayJobs,
+  listFailedRelayJobs,
   retryRecentFailedRelayJobsByName,
   retryRecentFailedRelayJobs,
   retrySingleFailedRelayJob,
@@ -180,5 +181,42 @@ describe("clearFailedRelayJobs", () => {
       removedCount: 2,
       removedJobIds: ["job-7", "job-8"]
     });
+  });
+});
+
+describe("listFailedRelayJobs", () => {
+  it("filters by name and caseId when provided", async () => {
+    const matchingJob = buildFailedJob({ id: "job-1", caseId: "case-1" });
+    const otherNameJob = {
+      ...buildFailedJob({ id: "job-2", caseId: "case-1" }),
+      name: "DOCTOR_TO_WHATSAPP"
+    };
+    const otherCaseJob = buildFailedJob({ id: "job-3", caseId: "case-2" });
+
+    const adapter: RelayQueueAdapter = {
+      getJobById: async () => null,
+      getFailedJobs: async () => [matchingJob, otherNameJob, otherCaseJob],
+      cleanFailed: async () => []
+    };
+
+    const result = await listFailedRelayJobs(adapter, {
+      limit: 10,
+      name: "PATIENT_TO_WEBEX",
+      caseId: "case-1"
+    });
+
+    expect(result.requestedLimit).toBe(10);
+    expect(result.totalFetched).toBe(3);
+    expect(result.totalMatched).toBe(1);
+    expect(result.jobs).toEqual([
+      {
+        jobId: "job-1",
+        name: "PATIENT_TO_WEBEX",
+        caseId: "case-1",
+        failedReason: "No Webex room configured",
+        attemptsMade: 3,
+        failedAt: "2024-03-09T16:00:00.000Z"
+      }
+    ]);
   });
 });

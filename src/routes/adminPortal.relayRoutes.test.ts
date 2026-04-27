@@ -109,6 +109,40 @@ describe("admin relay routes", () => {
     });
   });
 
+  it("returns structured disabled response for failed relay list in inline mode", async () => {
+    (env as { NODE_ENV: "development" | "test" | "production" }).NODE_ENV = "test";
+    (env as { ALLOW_DEV_HEADER_AUTH: "true" | "false" }).ALLOW_DEV_HEADER_AUTH = "true";
+    (env as { RELAY_DISPATCH_MODE: "inline" | "queue" }).RELAY_DISPATCH_MODE = "inline";
+
+    const res = await request(app)
+      .get("/api/v1/admin/relay/failed?limit=20&name=PATIENT_TO_WEBEX&caseId=case-1")
+      .set(adminHeaders())
+      .expect(200);
+
+    expect(res.body).toMatchObject({
+      ok: false,
+      requestedLimit: 20,
+      totalFetched: 0,
+      totalMatched: 0,
+      jobs: []
+    });
+    expect(String(res.body.reason || "")).toContain("dispatch mode is inline");
+  });
+
+  it("validates failed relay list name filter", async () => {
+    (env as { NODE_ENV: "development" | "test" | "production" }).NODE_ENV = "test";
+    (env as { ALLOW_DEV_HEADER_AUTH: "true" | "false" }).ALLOW_DEV_HEADER_AUTH = "true";
+
+    const res = await request(app)
+      .get("/api/v1/admin/relay/failed?name=INVALID_NAME")
+      .set(adminHeaders())
+      .expect(400);
+
+    expect(res.body).toMatchObject({
+      error: "Invalid relay job name filter"
+    });
+  });
+
   it("returns structured disabled responses for retry endpoints in inline mode", async () => {
     (env as { NODE_ENV: "development" | "test" | "production" }).NODE_ENV = "test";
     (env as { ALLOW_DEV_HEADER_AUTH: "true" | "false" }).ALLOW_DEV_HEADER_AUTH = "true";

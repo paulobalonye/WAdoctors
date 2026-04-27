@@ -119,6 +119,7 @@ pnpm dev:queue
 - `GET /api/v1/admin/webhooks`
 - `GET /api/v1/admin/webhooks/summary`
 - `GET /api/v1/admin/relay/health`
+- `GET /api/v1/admin/relay/failed`
 - `POST /api/v1/admin/relay/failed/:jobId/retry`
 - `POST /api/v1/admin/relay/failed/retry`
 - `POST /api/v1/admin/relay/failed/retry-webex`

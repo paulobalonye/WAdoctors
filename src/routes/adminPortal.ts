@@ -17,6 +17,7 @@ import {
   listAdminCases,
   listAdminDoctors,
   listRecentWebhookEvents,
+  listAdminFailedRelayJobs,
   injectAdminRelayFailure,
   retryAdminRelayFailedJob,
   retryAdminRecentFailedRelayJobs,
@@ -104,6 +105,8 @@ const injectRelayFailureBodySchema = z.object({
   direction: z.enum(["PATIENT_TO_WEBEX", "DOCTOR_TO_WHATSAPP"]),
   caseId: z.string().min(1).max(128).optional()
 });
+
+const relayJobNameSchema = z.enum(["PATIENT_TO_WEBEX", "DOCTOR_TO_WHATSAPP"]).optional();
 
 function parseLimit(value: unknown, fallback = 50): number {
   if (typeof value !== "string") {
@@ -400,6 +403,27 @@ adminPortalRouter.get("/relay/health", async (req: AuthedRequest, res: Response)
   try {
     const health = await getRelayQueueHealth(parseFailedLimit(req.query.failedLimit, 20));
     res.status(200).json(health);
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+adminPortalRouter.get("/relay/failed", async (req: AuthedRequest, res: Response) => {
+  try {
+    const parsedName = relayJobNameSchema.safeParse(req.query.name);
+    if (!parsedName.success) {
+      res.status(400).json({ error: "Invalid relay job name filter" });
+      return;
+    }
+
+    const caseId = typeof req.query.caseId === "string" ? req.query.caseId : undefined;
+    const data = await listAdminFailedRelayJobs({
+      limit: parseLimit(req.query.limit, 50),
+      name: parsedName.data,
+      caseId
+    });
+
+    res.status(200).json(data);
   } catch (error) {
     handleError(res, error);
   }

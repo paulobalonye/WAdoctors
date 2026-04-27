@@ -8,6 +8,7 @@ import { buildRelayQueueDisabledSummary, buildRelayQueueHealthSummary } from "./
 import { buildIntegrationStatus } from "./integrationStatus.js";
 import {
   clearFailedRelayJobs,
+  listFailedRelayJobs,
   retryRecentFailedRelayJobsByName,
   retryRecentFailedRelayJobs,
   retrySingleFailedRelayJob,
@@ -707,5 +708,37 @@ export async function injectAdminRelayFailure(params: {
     caseId,
     jobId: job.id != null ? String(job.id) : "unknown",
     reason: "Injected relay failure job queued"
+  };
+}
+
+export async function listAdminFailedRelayJobs(params: {
+  limit: number;
+  name?: "PATIENT_TO_WEBEX" | "DOCTOR_TO_WHATSAPP";
+  caseId?: string;
+}) {
+  const access = getRelayQueueAccess();
+  if ("reason" in access) {
+    return {
+      ok: false,
+      requestedLimit: Math.min(Math.max(params.limit, 1), 200),
+      totalFetched: 0,
+      totalMatched: 0,
+      jobs: [] as Array<{
+        jobId: string;
+        name: string;
+        caseId: string;
+        failedReason: string;
+        attemptsMade: number;
+        failedAt: string | null;
+      }>,
+      reason: access.reason
+    };
+  }
+
+  const adapter = buildRelayQueueAdapter(access.queue);
+  const result = await listFailedRelayJobs(adapter, params);
+  return {
+    ok: true,
+    ...result
   };
 }

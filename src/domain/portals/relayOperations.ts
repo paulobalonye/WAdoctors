@@ -32,6 +32,14 @@ function normalizeGraceSeconds(value: number): number {
   return Math.min(Math.floor(value), 7 * 24 * 60 * 60);
 }
 
+function toIsoTimestamp(value: number | null | undefined): string | null {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    return null;
+  }
+
+  return new Date(value).toISOString();
+}
+
 export async function retrySingleFailedRelayJob(adapter: RelayQueueAdapter, jobId: string) {
   const normalizedJobId = jobId.trim();
   const job = await adapter.getJobById(normalizedJobId);
@@ -168,5 +176,43 @@ export async function clearFailedRelayJobs(
     graceSeconds,
     removedCount: removedJobIds.length,
     removedJobIds
+  };
+}
+
+export async function listFailedRelayJobs(
+  adapter: RelayQueueAdapter,
+  params: {
+    limit: number;
+    name?: string;
+    caseId?: string;
+  }
+) {
+  const requestedLimit = normalizeLimit(params.limit, 1, 200);
+  const normalizedName = params.name?.trim();
+  const normalizedCaseId = params.caseId?.trim();
+  const jobs = await adapter.getFailedJobs(requestedLimit);
+
+  const filtered = jobs.filter((job) => {
+    if (normalizedName && job.name !== normalizedName) {
+      return false;
+    }
+    if (normalizedCaseId && job.caseId?.trim() !== normalizedCaseId) {
+      return false;
+    }
+    return true;
+  });
+
+  return {
+    requestedLimit,
+    totalFetched: jobs.length,
+    totalMatched: filtered.length,
+    jobs: filtered.map((job) => ({
+      jobId: job.id?.trim() || "unknown",
+      name: job.name || "UNKNOWN_JOB",
+      caseId: job.caseId?.trim() || "",
+      failedReason: job.failedReason?.trim() || "Unknown failure",
+      attemptsMade: normalizeLimit(Number(job.attemptsMade ?? 0), 0, 1_000_000),
+      failedAt: toIsoTimestamp(job.finishedOn) ?? toIsoTimestamp(job.timestamp)
+    }))
   };
 }
