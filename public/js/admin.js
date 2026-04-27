@@ -34,6 +34,10 @@ const createDoctorActive = byId("createDoctorActive");
 const createDoctorBtn = byId("createDoctorBtn");
 const refreshDoctorsBtn = byId("refreshDoctorsBtn");
 const adminDoctorsTableBody = byId("adminDoctorsTableBody");
+const createAdminUserEmail = byId("createAdminUserEmail");
+const createAdminUserName = byId("createAdminUserName");
+const createAdminUserPassword = byId("createAdminUserPassword");
+const createAdminUserBtn = byId("createAdminUserBtn");
 
 const adminCaseStatusFilter = byId("adminCaseStatusFilter");
 const adminCaseLimit = byId("adminCaseLimit");
@@ -434,6 +438,24 @@ async function createDoctor() {
   createDoctorWebexPersonId.value = "";
 }
 
+async function createAdminUser() {
+  const body = {
+    email: createAdminUserEmail.value.trim(),
+    fullName: createAdminUserName.value.trim(),
+    password: createAdminUserPassword.value
+  };
+
+  await apiRequest("/api/v1/admin/admin-users", {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify(body)
+  });
+
+  createAdminUserEmail.value = "";
+  createAdminUserName.value = "";
+  createAdminUserPassword.value = "";
+}
+
 async function updateSelectedCaseStatus() {
   if (!selectedCaseId) {
     throw new Error("Select a case first");
@@ -520,6 +542,15 @@ createDoctorBtn.addEventListener("click", async () => {
     setStatus(adminStatusBar, "Doctor created.", "success");
   } catch (error) {
     setStatus(adminStatusBar, error.message || "Failed to create doctor", "error");
+  }
+});
+
+createAdminUserBtn.addEventListener("click", async () => {
+  try {
+    await createAdminUser();
+    setStatus(adminStatusBar, "Admin user created.", "success");
+  } catch (error) {
+    setStatus(adminStatusBar, error.message || "Failed to create admin user", "error");
   }
 });
 
