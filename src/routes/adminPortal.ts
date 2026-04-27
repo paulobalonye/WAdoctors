@@ -2,6 +2,7 @@ import { DoctorKycStatus, type CaseStatus } from "@prisma/client";
 import { Router, type Response } from "express";
 import { z } from "zod";
 import { type AuthedRequest, requireRole } from "../auth/roles.js";
+import { env } from "../config/env.js";
 import {
   assignAdminCaseDoctor,
   createAdminDoctor,
@@ -16,6 +17,7 @@ import {
   listAdminCases,
   listAdminDoctors,
   listRecentWebhookEvents,
+  injectAdminRelayFailure,
   retryAdminRelayFailedJob,
   retryAdminRecentFailedRelayJobs,
   retryAdminRecentWhatsAppFailedRelayJobs,
@@ -96,6 +98,11 @@ const retryRecentRelayBodySchema = z.object({
 const clearFailedRelayBodySchema = z.object({
   limit: z.number().int().min(1).max(200).optional(),
   graceSeconds: z.number().int().min(0).max(7 * 24 * 60 * 60).optional()
+});
+
+const injectRelayFailureBodySchema = z.object({
+  direction: z.enum(["PATIENT_TO_WEBEX", "DOCTOR_TO_WHATSAPP"]),
+  caseId: z.string().min(1).max(128).optional()
 });
 
 function parseLimit(value: unknown, fallback = 50): number {
@@ -475,6 +482,30 @@ adminPortalRouter.post("/relay/failed/clear", async (req: AuthedRequest, res: Re
     const result = await clearAdminFailedRelayJobs({
       limit: body.data.limit ?? 100,
       graceSeconds: body.data.graceSeconds ?? 300
+    });
+
+    res.status(200).json(result);
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+adminPortalRouter.post("/relay/dev/inject-failure", async (req: AuthedRequest, res: Response) => {
+  try {
+    if (env.NODE_ENV === "production") {
+      res.status(403).json({ error: "Relay failure injection is disabled in production" });
+      return;
+    }
+
+    const body = injectRelayFailureBodySchema.safeParse(req.body ?? {});
+    if (!body.success) {
+      res.status(400).json({ error: "Invalid body", details: body.error.flatten().fieldErrors });
+      return;
+    }
+
+    const result = await injectAdminRelayFailure({
+      direction: body.data.direction,
+      caseId: body.data.caseId
     });
 
     res.status(200).json(result);

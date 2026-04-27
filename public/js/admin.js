@@ -64,10 +64,12 @@ const adminWebhookTableBody = byId("adminWebhookTableBody");
 const adminRelayFailedLimit = byId("adminRelayFailedLimit");
 const adminRelayClearGraceSeconds = byId("adminRelayClearGraceSeconds");
 const adminRelayCaseId = byId("adminRelayCaseId");
+const adminRelayInjectDirection = byId("adminRelayInjectDirection");
 const refreshRelayHealthBtn = byId("refreshRelayHealthBtn");
 const retryRecentRelayFailedBtn = byId("retryRecentRelayFailedBtn");
 const retryWebexRelayFailedBtn = byId("retryWebexRelayFailedBtn");
 const retryWhatsAppRelayFailedBtn = byId("retryWhatsAppRelayFailedBtn");
+const injectRelayFailureBtn = byId("injectRelayFailureBtn");
 const clearRelayFailedBtn = byId("clearRelayFailedBtn");
 const adminRelayHealthGrid = byId("adminRelayHealthGrid");
 const adminRelayHealthNote = byId("adminRelayHealthNote");
@@ -743,6 +745,20 @@ async function clearRelayFailedJobs() {
   });
 }
 
+async function injectRelayFailure() {
+  const direction = adminRelayInjectDirection.value;
+  const caseId = adminRelayCaseId.value.trim();
+
+  return apiRequest("/api/v1/admin/relay/dev/inject-failure", {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({
+      direction,
+      ...(caseId ? { caseId } : {})
+    })
+  });
+}
+
 async function createDoctor() {
   const body = {
     email: createDoctorEmail.value.trim(),
@@ -875,6 +891,7 @@ clearAdminSessionBtn.addEventListener("click", () => {
   adminRelayHealthNote.textContent = "";
   adminRelayFailedJobsBody.innerHTML = "";
   adminRelayCaseId.value = "";
+  adminRelayInjectDirection.value = "PATIENT_TO_WEBEX";
   setStatus(adminStatusBar, "Admin session cleared.");
 });
 
@@ -1040,6 +1057,22 @@ retryWhatsAppRelayFailedBtn.addEventListener("click", async () => {
     );
   } catch (error) {
     setStatus(adminStatusBar, error.message || "Failed to retry WhatsApp relay jobs", "error");
+  }
+});
+
+injectRelayFailureBtn.addEventListener("click", async () => {
+  try {
+    const result = await injectRelayFailure();
+    await loadRelayHealth();
+    setStatus(
+      adminStatusBar,
+      result.ok
+        ? `Injected failed relay job ${result.jobId || ""} (${result.direction || ""}).`
+        : result.reason || "Unable to inject relay failure job.",
+      result.ok ? "success" : "error"
+    );
+  } catch (error) {
+    setStatus(adminStatusBar, error.message || "Failed to inject relay failure", "error");
   }
 });
 

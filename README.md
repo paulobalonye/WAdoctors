@@ -124,8 +124,10 @@ pnpm dev:queue
 - `POST /api/v1/admin/relay/failed/retry-webex`
 - `POST /api/v1/admin/relay/failed/retry-whatsapp`
 - `POST /api/v1/admin/relay/failed/clear`
+- `POST /api/v1/admin/relay/dev/inject-failure` (non-production only)
 
 Relay retry request bodies may include optional `caseId` for targeted retries.
+`/api/v1/admin/relay/dev/inject-failure` is for non-production queue-mode drills and accepts `direction` + optional `caseId`.
 
 ## Portal auth
 

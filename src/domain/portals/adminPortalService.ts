@@ -661,3 +661,51 @@ export async function clearAdminFailedRelayJobs(params: { limit: number; graceSe
     };
   }
 }
+
+export async function injectAdminRelayFailure(params: {
+  direction: "PATIENT_TO_WEBEX" | "DOCTOR_TO_WHATSAPP";
+  caseId?: string;
+}) {
+  const access = getRelayQueueAccess();
+  if ("reason" in access) {
+    return {
+      ok: false,
+      direction: params.direction,
+      caseId: params.caseId?.trim() || "",
+      reason: access.reason
+    };
+  }
+
+  const caseId = params.caseId?.trim() || `missing-case-${Date.now()}`;
+  const payload =
+    params.direction === "PATIENT_TO_WEBEX"
+      ? {
+          type: "PATIENT_TO_WEBEX" as const,
+          caseId,
+          patientPhone: "+15550000000",
+          text: "[dev] injected relay failure"
+        }
+      : {
+          type: "DOCTOR_TO_WHATSAPP" as const,
+          caseId,
+          doctorText: "[dev] injected relay failure"
+        };
+
+  const job = await access.queue.add(payload.type, payload, {
+    attempts: 1,
+    backoff: {
+      type: "fixed",
+      delay: 0
+    },
+    removeOnComplete: false,
+    removeOnFail: false
+  });
+
+  return {
+    ok: true,
+    direction: payload.type,
+    caseId,
+    jobId: job.id != null ? String(job.id) : "unknown",
+    reason: "Injected relay failure job queued"
+  };
+}
