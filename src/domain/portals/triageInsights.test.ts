@@ -16,7 +16,10 @@ describe("buildTriageInsightsSummary", () => {
             redFlags: ["chest pain", "shortness of breath"],
             baselineUrgency: 4,
             urgencyScore: 5,
-            summary: "Possible acute emergency."
+            summary: "Possible acute emergency.",
+            fallbackReason: null,
+            safetyOverride: false,
+            safetySignal: ""
           }
         },
         {
@@ -27,7 +30,10 @@ describe("buildTriageInsightsSummary", () => {
             redFlags: ["fever"],
             baselineUrgency: 3,
             urgencyScore: 4,
-            summary: "Urgent care follow-up recommended."
+            summary: "Urgent care follow-up recommended.",
+            fallbackReason: null,
+            safetyOverride: false,
+            safetySignal: ""
           }
         },
         {
@@ -38,7 +44,10 @@ describe("buildTriageInsightsSummary", () => {
             redFlags: ["fever"],
             baselineUrgency: 3,
             urgencyScore: 3,
-            summary: "Keyword baseline."
+            summary: "Keyword baseline.",
+            fallbackReason: null,
+            safetyOverride: false,
+            safetySignal: ""
           }
         },
         {

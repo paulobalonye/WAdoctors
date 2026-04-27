@@ -37,6 +37,14 @@ export function buildInitialCaseSummary(params: {
     lines.push(`Triage Source: ${triage.triageSource}`);
     lines.push(`Triage Route: ${triage.route}`);
     lines.push(`Triage Confidence: ${Math.round(triage.triageConfidence * 100)}%`);
+    if (triage.triageFallbackReason) {
+      lines.push(`Triage Fallback: ${triage.triageFallbackReason}`);
+    }
+    if (triage.triageSafetyOverride) {
+      lines.push(
+        `Triage Safety Override: ${triage.triageSafetySignal ? triage.triageSafetySignal : "enabled"}`
+      );
+    }
     if (triage.triageRedFlags.length) {
       lines.push(`Triage Red Flags: ${triage.triageRedFlags.join(", ")}`);
     }

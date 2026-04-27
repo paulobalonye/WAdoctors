@@ -11,6 +11,7 @@ describe("buildWhatsAppWorkflowPreview", () => {
     expect(result.triageSource).toBe("HEURISTIC");
     expect(result.route).toBe("ROUTE_TO_DOCTOR");
     expect(result.baselineUrgency).toBe(result.urgencyScore);
+    expect(result.triageSafetyOverride).toBe(false);
     expect(result.finalStatus).toBe("ASSIGNED");
     expect(result.transitions.map((item) => item.to)).toEqual(["TRIAGING", "ASSIGNED"]);
   });
@@ -39,6 +40,8 @@ describe("buildWhatsAppWorkflowPreviewWithAI", () => {
     expect(result.route).toBe("ESCALATE_EMERGENCY");
     expect(result.finalStatus).toBe("ESCALATED");
     expect(result.triageRedFlags).toEqual(["shortness of breath"]);
+    expect(result.triageFallbackReason).toBeUndefined();
+    expect(result.triageSafetyOverride).toBe(false);
     expect(result.transitions.map((item) => item.to)).toEqual(["TRIAGING", "ESCALATED"]);
   });
 
@@ -56,6 +59,8 @@ describe("buildWhatsAppWorkflowPreviewWithAI", () => {
 
     expect(provider.assess).toHaveBeenCalledTimes(1);
     expect(result.triageSource).toBe("HEURISTIC");
+    expect(result.triageFallbackReason).toBe("AI_PROVIDER_ERROR");
+    expect(result.triageSafetyOverride).toBe(false);
     expect(result.transitions[0]?.to).toBe("TRIAGING");
   });
 });

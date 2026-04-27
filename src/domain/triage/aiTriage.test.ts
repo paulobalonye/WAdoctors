@@ -12,6 +12,7 @@ describe("buildTriageAssessment", () => {
     expect(result.source).toBe("HEURISTIC");
     expect(result.urgencyScore).toBe(3);
     expect(result.route).toBe("ROUTE_TO_DOCTOR");
+    expect(result.fallbackReason).toBe("AI_DISABLED");
   });
 
   it("uses AI assessment and keeps higher urgency than baseline", async () => {
@@ -38,6 +39,7 @@ describe("buildTriageAssessment", () => {
     expect(result.route).toBe("ESCALATE_EMERGENCY");
     expect(result.summary).toBe("Low urgency per AI");
     expect(result.confidence).toBeCloseTo(0.72);
+    expect(result.fallbackReason).toBeUndefined();
   });
 
   it("falls back to heuristic triage when provider fails", async () => {
@@ -56,5 +58,45 @@ describe("buildTriageAssessment", () => {
     expect(result.source).toBe("HEURISTIC");
     expect(result.urgencyScore).toBe(4);
     expect(result.route).toBe("ROUTE_TO_DOCTOR");
+    expect(result.fallbackReason).toBe("AI_PROVIDER_ERROR");
+  });
+
+  it("falls back to heuristic triage on low-confidence AI responses", async () => {
+    const provider: TriageAIProvider = {
+      assess: vi.fn().mockResolvedValue({
+        urgencyScore: 5,
+        summary: "Possible emergency",
+        redFlags: ["unsteady"],
+        confidence: 0.21
+      })
+    };
+
+    const result = await buildTriageAssessment({
+      messageText: "I have a cough and headache",
+      patientState: "OH",
+      aiEnabled: true,
+      provider
+    });
+
+    expect(provider.assess).toHaveBeenCalledTimes(1);
+    expect(result.source).toBe("HEURISTIC");
+    expect(result.urgencyScore).toBe(3);
+    expect(result.route).toBe("ROUTE_TO_DOCTOR");
+    expect(result.fallbackReason).toBe("AI_LOW_CONFIDENCE");
+  });
+
+  it("forces emergency route on critical override keywords", async () => {
+    const result = await buildTriageAssessment({
+      messageText: "My friend is unconscious and not breathing well",
+      patientState: "OH",
+      aiEnabled: false
+    });
+
+    expect(result.source).toBe("HEURISTIC");
+    expect(result.baselineUrgency).toBe(2);
+    expect(result.urgencyScore).toBe(5);
+    expect(result.route).toBe("ESCALATE_EMERGENCY");
+    expect(result.safetyOverride).toBe(true);
+    expect(result.safetySignal).toBe("unconscious");
   });
 });

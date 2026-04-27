@@ -65,7 +65,10 @@ export async function processWhatsAppWebhookPayload(payload: unknown): Promise<W
         triageRedFlags: workflow.triageRedFlags,
         baselineUrgency: workflow.baselineUrgency,
         urgencyScore: workflow.urgencyScore,
-        route: workflow.route
+        route: workflow.route,
+        triageFallbackReason: workflow.triageFallbackReason,
+        triageSafetyOverride: workflow.triageSafetyOverride,
+        triageSafetySignal: workflow.triageSafetySignal
       });
 
       triageCase = await createNewCase({
@@ -85,7 +88,7 @@ export async function processWhatsAppWebhookPayload(payload: unknown): Promise<W
         content: `Triage note: ${triageStorage.aiSummary}`.slice(0, 2000)
       });
 
-      const transitions = workflow.transitions.slice(1).map((item) => ({
+      const transitions = workflow.transitions.map((item) => ({
         to: item.to,
         reason: item.reason
       }));

@@ -1,6 +1,10 @@
 import { CaseStatus } from "@prisma/client";
 import { applyCaseStatusTransition } from "../cases/stateMachine.js";
-import { buildTriageAssessment, type TriageAIProvider } from "../triage/aiTriage.js";
+import {
+  buildTriageAssessment,
+  type TriageAIProvider,
+  type TriageFallbackReason
+} from "../triage/aiTriage.js";
 import {
   inferUrgencyFromText,
   routeOhioUrgentCareCase,
@@ -21,6 +25,9 @@ export type WhatsAppWorkflowPreview = {
   triageSummary: string;
   triageConfidence: number;
   triageRedFlags: string[];
+  triageFallbackReason?: TriageFallbackReason;
+  triageSafetyOverride: boolean;
+  triageSafetySignal?: string;
   finalStatus: CaseStatus;
   transitions: WorkflowTransition[];
 };
@@ -44,6 +51,9 @@ function buildWorkflowFromAssessment(params: {
   triageSummary: string;
   triageConfidence: number;
   triageRedFlags: string[];
+  triageFallbackReason?: TriageFallbackReason;
+  triageSafetyOverride: boolean;
+  triageSafetySignal?: string;
 }): WhatsAppWorkflowPreview {
   const transitions: WorkflowTransition[] = [];
   let currentStatus: CaseStatus = CaseStatus.NEW;
@@ -95,6 +105,9 @@ function buildWorkflowFromAssessment(params: {
     triageSummary: params.triageSummary,
     triageConfidence: params.triageConfidence,
     triageRedFlags: params.triageRedFlags,
+    ...(params.triageFallbackReason ? { triageFallbackReason: params.triageFallbackReason } : {}),
+    triageSafetyOverride: params.triageSafetyOverride,
+    ...(params.triageSafetySignal ? { triageSafetySignal: params.triageSafetySignal } : {}),
     finalStatus: currentStatus,
     transitions
   };
@@ -117,7 +130,8 @@ export function buildWhatsAppWorkflowPreview(params: {
     triageSource: "HEURISTIC",
     triageSummary: "Keyword-based triage baseline",
     triageConfidence: 0.55,
-    triageRedFlags: []
+    triageRedFlags: [],
+    triageSafetyOverride: false
   });
 }
 
@@ -141,6 +155,9 @@ export async function buildWhatsAppWorkflowPreviewWithAI(params: {
     triageSource: assessment.source,
     triageSummary: assessment.summary,
     triageConfidence: assessment.confidence,
-    triageRedFlags: assessment.redFlags
+    triageRedFlags: assessment.redFlags,
+    triageFallbackReason: assessment.fallbackReason,
+    triageSafetyOverride: assessment.safetyOverride,
+    triageSafetySignal: assessment.safetySignal
   });
 }

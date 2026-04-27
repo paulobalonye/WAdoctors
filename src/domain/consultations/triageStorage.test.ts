@@ -60,4 +60,29 @@ describe("buildCaseTriageStorage", () => {
   it("returns null for invalid transcript JSON", () => {
     expect(parseCaseTriageStorage("not-json")).toBeNull();
   });
+
+  it("stores fallback and safety override metadata when provided", () => {
+    const storage = buildCaseTriageStorage({
+      triageSource: "HEURISTIC",
+      triageSummary: "AI fallback to heuristic: low confidence (24%)",
+      triageConfidence: 0.55,
+      triageRedFlags: ["unconscious"],
+      baselineUrgency: 2,
+      urgencyScore: 5,
+      route: "ESCALATE_EMERGENCY",
+      triageFallbackReason: "AI_LOW_CONFIDENCE",
+      triageSafetyOverride: true,
+      triageSafetySignal: "unconscious"
+    });
+
+    expect(storage.aiSummary).toContain("fallback: AI_LOW_CONFIDENCE");
+    expect(storage.aiSummary).toContain("safety override: unconscious");
+
+    const parsed = parseCaseTriageStorage(storage.aiTranscript);
+    expect(parsed).toMatchObject({
+      triageFallbackReason: "AI_LOW_CONFIDENCE",
+      triageSafetyOverride: true,
+      triageSafetySignal: "unconscious"
+    });
+  });
 });

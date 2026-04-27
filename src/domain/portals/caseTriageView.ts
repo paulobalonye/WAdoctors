@@ -8,6 +8,9 @@ export type CaseTriageView = {
   baselineUrgency: number | null;
   urgencyScore: number | null;
   summary: string;
+  fallbackReason: "AI_DISABLED" | "AI_PROVIDER_UNAVAILABLE" | "AI_PROVIDER_ERROR" | "AI_LOW_CONFIDENCE" | null;
+  safetyOverride: boolean;
+  safetySignal: string;
 };
 
 export function buildCaseTriageView(params: {
@@ -28,6 +31,9 @@ export function buildCaseTriageView(params: {
     redFlags: parsed?.triageRedFlags ?? [],
     baselineUrgency: parsed ? parsed.baselineUrgency : null,
     urgencyScore: parsed ? parsed.urgencyScore : null,
-    summary: parsed?.triageSummary || summaryText
+    summary: parsed?.triageSummary || summaryText,
+    fallbackReason: parsed?.triageFallbackReason ?? null,
+    safetyOverride: Boolean(parsed?.triageSafetyOverride),
+    safetySignal: parsed?.triageSafetySignal ?? ""
   };
 }

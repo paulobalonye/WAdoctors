@@ -24,7 +24,10 @@ describe("buildCaseTriageView", () => {
       redFlags: ["chest pain"],
       baselineUrgency: 4,
       urgencyScore: 5,
-      summary: "Possible emergency"
+      summary: "Possible emergency",
+      fallbackReason: null,
+      safetyOverride: false,
+      safetySignal: ""
     });
   });
 
@@ -41,7 +44,10 @@ describe("buildCaseTriageView", () => {
       redFlags: [],
       baselineUrgency: null,
       urgencyScore: null,
-      summary: "HEURISTIC triage summary"
+      summary: "HEURISTIC triage summary",
+      fallbackReason: null,
+      safetyOverride: false,
+      safetySignal: ""
     });
   });
 

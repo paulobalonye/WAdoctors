@@ -15,6 +15,12 @@ export type TriageAIProvider = {
   }): Promise<AITriageSuggestion>;
 };
 
+export type TriageFallbackReason =
+  | "AI_DISABLED"
+  | "AI_PROVIDER_UNAVAILABLE"
+  | "AI_PROVIDER_ERROR"
+  | "AI_LOW_CONFIDENCE";
+
 export type TriageAssessment = {
   urgencyScore: number;
   baselineUrgency: number;
@@ -23,6 +29,9 @@ export type TriageAssessment = {
   summary: string;
   redFlags: string[];
   confidence: number;
+  fallbackReason?: TriageFallbackReason;
+  safetyOverride: boolean;
+  safetySignal?: string;
 };
 
 type BuildTriageAssessmentInput = {
@@ -31,6 +40,20 @@ type BuildTriageAssessmentInput = {
   aiEnabled: boolean;
   provider?: TriageAIProvider;
 };
+
+const MIN_AI_CONFIDENCE = 0.45;
+const EMERGENCY_OVERRIDE_SIGNALS = [
+  "unconscious",
+  "passed out",
+  "not breathing",
+  "stopped breathing",
+  "bleeding heavily",
+  "heavy bleeding",
+  "overdose",
+  "suicidal",
+  "suicide attempt",
+  "anaphylaxis"
+] as const;
 
 function clampUrgency(value: number): number {
   if (!Number.isFinite(value)) {
@@ -72,29 +95,65 @@ function normalizeRedFlags(value: string[] | undefined): string[] {
   return normalized.slice(0, 8);
 }
 
+function detectEmergencyOverrideSignal(messageText: string): string | undefined {
+  const normalized = String(messageText || "").toLowerCase();
+  if (!normalized.trim()) {
+    return undefined;
+  }
+
+  for (const signal of EMERGENCY_OVERRIDE_SIGNALS) {
+    if (normalized.includes(signal)) {
+      return signal;
+    }
+  }
+
+  return undefined;
+}
+
 function buildHeuristicAssessment(messageText: string, patientState: string): TriageAssessment {
   const baselineUrgency = clampUrgency(inferUrgencyFromText(messageText));
+  const safetySignal = detectEmergencyOverrideSignal(messageText);
+  const urgencyScore = safetySignal ? 5 : baselineUrgency;
   const route = routeOhioUrgentCareCase({
-    urgencyScore: baselineUrgency,
+    urgencyScore,
     patientState
   });
 
   return {
-    urgencyScore: baselineUrgency,
+    urgencyScore,
     baselineUrgency,
     route,
     source: "HEURISTIC",
-    summary: "Keyword-based triage baseline",
-    redFlags: [],
-    confidence: 0.55
+    summary: safetySignal ? `Emergency keyword override: ${safetySignal}` : "Keyword-based triage baseline",
+    redFlags: safetySignal ? [safetySignal] : [],
+    confidence: safetySignal ? 0.7 : 0.55,
+    safetyOverride: Boolean(safetySignal),
+    ...(safetySignal ? { safetySignal } : {})
+  };
+}
+
+function withFallback(
+  assessment: TriageAssessment,
+  fallbackReason: TriageFallbackReason,
+  summary?: string
+): TriageAssessment {
+  return {
+    ...assessment,
+    source: "HEURISTIC",
+    summary: summary ?? assessment.summary,
+    fallbackReason
   };
 }
 
 export async function buildTriageAssessment(input: BuildTriageAssessmentInput): Promise<TriageAssessment> {
   const heuristic = buildHeuristicAssessment(input.messageText, input.patientState);
 
-  if (!input.aiEnabled || !input.provider) {
-    return heuristic;
+  if (!input.aiEnabled) {
+    return withFallback(heuristic, "AI_DISABLED");
+  }
+
+  if (!input.provider) {
+    return withFallback(heuristic, "AI_PROVIDER_UNAVAILABLE", "AI fallback to heuristic: provider unavailable");
   }
 
   try {
@@ -104,14 +163,26 @@ export async function buildTriageAssessment(input: BuildTriageAssessmentInput): 
       baselineUrgency: heuristic.baselineUrgency
     });
 
-    const aiUrgency = clampUrgency(Number(suggestion.urgencyScore ?? heuristic.baselineUrgency));
-    const finalUrgency = Math.max(heuristic.baselineUrgency, aiUrgency);
+    const confidence = clampConfidence(Number(suggestion.confidence ?? 0));
+    if (confidence < MIN_AI_CONFIDENCE) {
+      return withFallback(
+        heuristic,
+        "AI_LOW_CONFIDENCE",
+        `AI fallback to heuristic: low confidence (${Math.round(confidence * 100)}%)`
+      );
+    }
+
+    const aiUrgency = clampUrgency(Number(suggestion.urgencyScore ?? heuristic.urgencyScore));
+    const finalUrgency = Math.max(heuristic.urgencyScore, aiUrgency);
     const route = routeOhioUrgentCareCase({
       urgencyScore: finalUrgency,
       patientState: input.patientState
     });
-    const confidence = clampConfidence(Number(suggestion.confidence ?? 0));
     const summary = String(suggestion.summary || "").trim() || "AI-assisted triage analysis";
+    const redFlags = normalizeRedFlags([
+      ...(Array.isArray(suggestion.redFlags) ? suggestion.redFlags : []),
+      ...(heuristic.safetySignal ? [heuristic.safetySignal] : [])
+    ]);
 
     return {
       urgencyScore: finalUrgency,
@@ -119,10 +190,12 @@ export async function buildTriageAssessment(input: BuildTriageAssessmentInput): 
       route,
       source: "AI",
       summary,
-      redFlags: normalizeRedFlags(suggestion.redFlags),
-      confidence
+      redFlags,
+      confidence,
+      safetyOverride: heuristic.safetyOverride,
+      ...(heuristic.safetySignal ? { safetySignal: heuristic.safetySignal } : {})
     };
   } catch {
-    return heuristic;
+    return withFallback(heuristic, "AI_PROVIDER_ERROR", "AI fallback to heuristic: provider error");
   }
 }

@@ -647,7 +647,10 @@ export async function evaluateAdminTriage(params: {
       route: workflow.route,
       confidence: workflow.triageConfidence,
       redFlags: workflow.triageRedFlags,
-      summary: workflow.triageSummary
+      summary: workflow.triageSummary,
+      fallbackReason: workflow.triageFallbackReason ?? null,
+      safetyOverride: workflow.triageSafetyOverride,
+      safetySignal: workflow.triageSafetySignal ?? ""
     },
     finalStatus: workflow.finalStatus,
     transitions: workflow.transitions
