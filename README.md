@@ -133,8 +133,8 @@ Relay retry request bodies may include optional `caseId` for targeted retries.
 Queue drill steps are documented in `docs/RELAY_QUEUE_DRILL.md`.
 
 AI triage can be enabled with:
-- `AI_TRIAGE_ENABLED=true`
-- `OPENAI_API_KEY=<key>`
+- `OPENAI_API_KEY=<key>` (auto-enables AI triage)
+- Optional explicit flag: `AI_TRIAGE_ENABLED=true`
 - Optional model and timeout overrides: `OPENAI_TRIAGE_MODEL`, `OPENAI_TRIAGE_TIMEOUT_MS`
 
 When enabled, AI urgency is blended with a safety floor from the existing keyword heuristic (never lower than baseline), and fallback stays active if AI is unavailable.
@@ -173,6 +173,7 @@ Safety guard:
 15. Baseline Prisma migration checked in at `prisma/migrations/20260426180000_init`.
 16. AI-assisted triage scoring path added (OpenAI-backed, feature-flagged, heuristic fallback).
 17. AI triage metadata is persisted on new cases (`aiSummary` + structured `aiTranscript`) and shown in admin/doctor case context.
+18. Admin and doctor case-list payloads now include normalized `triage` objects for source, route, confidence, red flags, and summary.
 
 ## Next implementation steps
 

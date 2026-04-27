@@ -4,6 +4,7 @@ import { prisma } from "../../lib/prisma.js";
 import { getRelayQueue } from "../../queues/relayQueue.js";
 import { hashPortalPassword } from "../auth/authService.js";
 import { defaultDoctorAvailability } from "../cases/doctorAvailability.js";
+import { buildCaseTriageView } from "./caseTriageView.js";
 import { buildRelayQueueDisabledSummary, buildRelayQueueHealthSummary } from "./relayHealth.js";
 import { buildIntegrationStatus } from "./integrationStatus.js";
 import {
@@ -132,11 +133,13 @@ export async function getAdminOverview() {
 }
 
 export function getAdminIntegrationStatus() {
+  const aiEnabled = env.AI_TRIAGE_ENABLED === "true" || Boolean(env.OPENAI_API_KEY?.trim());
+
   return buildIntegrationStatus({
     relayDispatchMode: env.RELAY_DISPATCH_MODE,
     redisUrl: env.REDIS_URL,
     aiTriage: {
-      enabled: env.AI_TRIAGE_ENABLED === "true",
+      enabled: aiEnabled,
       provider: "openai",
       apiKey: env.OPENAI_API_KEY,
       model: env.OPENAI_TRIAGE_MODEL
@@ -160,7 +163,7 @@ export function getAdminIntegrationStatus() {
 }
 
 export async function listAdminCases(params: { status?: CaseStatus; limit: number }) {
-  return prisma.triageCase.findMany({
+  const cases = await prisma.triageCase.findMany({
     where: {
       ...(params.status ? { status: params.status } : {})
     },
@@ -185,16 +188,36 @@ export async function listAdminCases(params: { status?: CaseStatus; limit: numbe
     },
     take: params.limit
   });
+
+  return cases.map((item) => ({
+    ...item,
+    triage: buildCaseTriageView({
+      aiSummary: item.aiSummary,
+      aiTranscript: item.aiTranscript
+    })
+  }));
 }
 
 export async function getAdminCase(caseId: string) {
-  return prisma.triageCase.findUnique({
+  const triageCase = await prisma.triageCase.findUnique({
     where: { id: caseId },
     include: {
       patient: true,
       assignedDoctor: true
     }
   });
+
+  if (!triageCase) {
+    return null;
+  }
+
+  return {
+    ...triageCase,
+    triage: buildCaseTriageView({
+      aiSummary: triageCase.aiSummary,
+      aiTranscript: triageCase.aiTranscript
+    })
+  };
 }
 
 export async function getAdminCaseMessages(caseId: string) {

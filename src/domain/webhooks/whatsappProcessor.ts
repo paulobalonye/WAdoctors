@@ -22,6 +22,7 @@ const triageAIProvider = createOpenAITriageProvider({
   baseUrl: env.OPENAI_BASE_URL,
   timeoutMs: env.OPENAI_TRIAGE_TIMEOUT_MS
 });
+const aiTriageEnabled = env.AI_TRIAGE_ENABLED === "true" || Boolean(env.OPENAI_API_KEY?.trim());
 
 export type WhatsAppProcessResult = {
   processedCount: number;
@@ -62,7 +63,7 @@ export async function processWhatsAppWebhookPayload(payload: unknown): Promise<W
       const workflow = await buildWhatsAppWorkflowPreviewWithAI({
         messageText: message.text,
         patientState: env.LAUNCH_STATE,
-        aiEnabled: env.AI_TRIAGE_ENABLED === "true",
+        aiEnabled: aiTriageEnabled,
         provider: triageAIProvider
       });
       const triageStorage = buildCaseTriageStorage({

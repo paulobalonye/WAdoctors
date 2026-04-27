@@ -63,6 +63,32 @@ function parseCaseTriageTranscript(rawValue) {
   }
 }
 
+function getCaseTriage(item) {
+  const triage = item?.triage;
+  if (triage && typeof triage === "object") {
+    const source = triage.source === "AI" ? "AI" : "HEURISTIC";
+    const route = typeof triage.route === "string" ? triage.route : "";
+    const confidenceRaw = Number(triage.confidence);
+    const confidence = Number.isFinite(confidenceRaw)
+      ? Math.min(Math.max(confidenceRaw, 0), 1)
+      : null;
+    const redFlags = Array.isArray(triage.redFlags)
+      ? triage.redFlags
+          .map((value) => String(value || "").trim())
+          .filter((value, index, arr) => value && arr.indexOf(value) === index)
+      : [];
+
+    return {
+      source,
+      route,
+      confidence,
+      redFlags
+    };
+  }
+
+  return parseCaseTriageTranscript(item?.aiTranscript);
+}
+
 function authHeaders() {
   if (doctorToken) {
     return {
@@ -129,7 +155,7 @@ function updateSelectedCaseMeta() {
     return;
   }
 
-  const triage = parseCaseTriageTranscript(selected.aiTranscript);
+  const triage = getCaseTriage(selected);
   const confidenceBadge = triage && triage.confidence !== null
     ? `${Math.round(triage.confidence * 100)}%`
     : "-";

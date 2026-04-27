@@ -2,6 +2,7 @@ import { CaseStatus } from "@prisma/client";
 import { prisma } from "../../lib/prisma.js";
 import { transitionCaseStatus } from "../cases/caseRepository.js";
 import { dispatchDoctorToWhatsApp } from "../messages/relayDispatcher.js";
+import { buildCaseTriageView } from "./caseTriageView.js";
 
 function assertDoctorOwnsCase(caseDoctorId: string | null, doctorId: string): void {
   if (!caseDoctorId || caseDoctorId !== doctorId) {
@@ -25,7 +26,7 @@ export async function listDoctorCases(params: {
   doctorId: string;
   status?: CaseStatus;
 }) {
-  return prisma.triageCase.findMany({
+  const cases = await prisma.triageCase.findMany({
     where: {
       assignedDoctorId: params.doctorId,
       ...(params.status ? { status: params.status } : {})
@@ -43,6 +44,14 @@ export async function listDoctorCases(params: {
       createdAt: "desc"
     }
   });
+
+  return cases.map((item) => ({
+    ...item,
+    triage: buildCaseTriageView({
+      aiSummary: item.aiSummary,
+      aiTranscript: item.aiTranscript
+    })
+  }));
 }
 
 export async function getDoctorCaseMessages(params: {
