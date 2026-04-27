@@ -99,6 +99,7 @@ model Doctor {
   id                     String          @id @default(uuid())
   email                  String          @unique
   fullName               String
+  passwordHash           String?
   npiNumber              String          @unique
   medicalLicenseNumber   String?
   licenseState           String?
@@ -112,7 +113,18 @@ model Doctor {
   kycStatus              DoctorKycStatus @default(PENDING)
   isActive               Boolean         @default(false)
   createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
   triageCases            TriageCase[]
+}
+
+model AdminUser {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  fullName     String
+  passwordHash String
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 model Subscription {

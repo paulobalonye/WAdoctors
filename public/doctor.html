@@ -21,11 +21,23 @@
         <div class="panel">
           <h2>Session</h2>
           <div class="field">
+            <label for="doctorEmailInput">Doctor Email</label>
+            <input id="doctorEmailInput" placeholder="doctor@clinic.com" />
+          </div>
+          <div class="field">
+            <label for="doctorPasswordInput">Password</label>
+            <input id="doctorPasswordInput" type="password" placeholder="Password" />
+          </div>
+          <div class="btnrow">
+            <button id="doctorLoginBtn">Login</button>
+          </div>
+          <div class="muted" style="margin: 8px 0 10px">Dev fallback</div>
+          <div class="field">
             <label for="doctorIdInput">Doctor ID</label>
             <input id="doctorIdInput" placeholder="Paste doctor UUID" />
           </div>
           <div class="btnrow">
-            <button id="saveDoctorSessionBtn">Use Doctor ID</button>
+            <button id="saveDoctorSessionBtn" class="secondary">Use Doctor ID</button>
             <button id="clearDoctorSessionBtn" class="secondary">Clear</button>
           </div>
           <div id="doctorStatusBar" class="statusbar">Waiting for doctor session.</div>

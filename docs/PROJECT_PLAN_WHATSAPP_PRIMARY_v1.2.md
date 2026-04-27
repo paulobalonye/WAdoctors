@@ -19,6 +19,7 @@ Status: Active execution plan
   - BullMQ relay queue + worker scaffolding with inline fallback mode
   - Doctor portal and admin portal API foundation with role-protected endpoints
   - Doctor and admin portal UI pages served at `/portal/*`
+  - JWT login endpoints and token-based auth for doctor/admin portals
 
 ## 1) Product mode (locked)
 

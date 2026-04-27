@@ -62,6 +62,8 @@ pnpm worker:relay
 
 - `GET /health`
 - `GET /api/v1/meta`
+- `POST /api/v1/auth/login`
+- `GET /api/v1/auth/me`
 - `GET /webhooks/whatsapp` (verification)
 - `POST /webhooks/whatsapp`
 - `POST /webhooks/webex`
@@ -73,14 +75,25 @@ pnpm worker:relay
 - `POST /api/v1/doctor/cases/:caseId/close`
 - `GET /api/v1/admin/overview`
 - `GET /api/v1/admin/cases`
+- `GET /api/v1/admin/cases/:caseId`
+- `GET /api/v1/admin/cases/:caseId/messages`
+- `PATCH /api/v1/admin/cases/:caseId/status`
+- `PATCH /api/v1/admin/cases/:caseId/assign`
 - `GET /api/v1/admin/doctors`
+- `POST /api/v1/admin/doctors`
 - `PATCH /api/v1/admin/doctors/:doctorId/active`
 - `PATCH /api/v1/admin/doctors/:doctorId/kyc`
+- `PATCH /api/v1/admin/doctors/:doctorId/password`
+- `POST /api/v1/admin/admin-users`
 - `GET /api/v1/admin/webhooks`
 
-## Portal auth (dev mode)
+## Portal auth
 
-Doctor and Admin portal endpoints currently use development auth headers:
+Primary mode:
+- `POST /api/v1/auth/login` returns JWT token for `ADMIN` and `DOCTOR`.
+- Portal requests send `Authorization: Bearer <token>`.
+
+Development fallback (enabled by `ALLOW_DEV_HEADER_AUTH=true`):
 
 - `x-user-role: DOCTOR` or `x-user-role: ADMIN`
 - `x-user-id: <doctor-or-admin-id>`
@@ -98,10 +111,11 @@ Doctor and Admin portal endpoints currently use development auth headers:
 9. Relay queue infrastructure with BullMQ + Redis and worker process.
 10. Doctor portal and admin portal API foundations with role-based route guards.
 11. Doctor portal and admin portal frontend pages served by the backend app.
+12. JWT login flow for Doctor and Admin portals with optional dev-header fallback.
 
 ## Next implementation steps
 
 1. Add dead-letter monitoring dashboards and queue alerting.
 2. Add doctor scheduling and availability windows to assignment logic.
-3. Replace dev auth headers with JWT/session auth for portal users.
+3. Disable header fallback in staging/prod (`ALLOW_DEV_HEADER_AUTH=false`) and enforce JWT-only portal access.
 4. Add first Prisma migration set and seed pipeline.

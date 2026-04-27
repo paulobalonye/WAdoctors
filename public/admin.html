@@ -22,6 +22,20 @@
           <h2>Session</h2>
           <div class="grid-2">
             <div class="field">
+              <label for="adminEmailInput">Admin Email</label>
+              <input id="adminEmailInput" placeholder="admin@wadoctors.com" />
+            </div>
+            <div class="field">
+              <label for="adminPasswordInput">Password</label>
+              <input id="adminPasswordInput" type="password" placeholder="Password" />
+            </div>
+          </div>
+          <div class="btnrow" style="margin-bottom: 10px">
+            <button id="adminLoginBtn">Login</button>
+          </div>
+          <div class="muted">Dev fallback</div>
+          <div class="grid-2">
+            <div class="field">
               <label for="adminIdInput">Admin ID</label>
               <input id="adminIdInput" placeholder="Admin UUID or identifier" />
             </div>
@@ -48,6 +62,10 @@
             <div class="field">
               <label for="createDoctorName">Full Name</label>
               <input id="createDoctorName" placeholder="Dr. Name" />
+            </div>
+            <div class="field">
+              <label for="createDoctorPassword">Password</label>
+              <input id="createDoctorPassword" type="password" placeholder="Min 8 chars" />
             </div>
             <div class="field">
               <label for="createDoctorNpi">NPI</label>

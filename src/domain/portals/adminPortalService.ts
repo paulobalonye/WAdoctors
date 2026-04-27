@@ -1,5 +1,6 @@
 import { DoctorKycStatus, type CaseStatus } from "@prisma/client";
 import { prisma } from "../../lib/prisma.js";
+import { hashPortalPassword } from "../auth/authService.js";
 
 const ACTIVE_CASE_STATUSES: CaseStatus[] = ["NEW", "TRIAGING", "ASSIGNED", "IN_PROGRESS", "ESCALATED"];
 
@@ -210,6 +211,7 @@ export async function listAdminDoctors() {
 export async function createAdminDoctor(params: {
   email: string;
   fullName: string;
+  password: string;
   npiNumber: string;
   licenseState?: string;
   specialty?: string;
@@ -217,16 +219,46 @@ export async function createAdminDoctor(params: {
   isActive?: boolean;
   kycStatus?: DoctorKycStatus;
 }) {
+  const passwordHash = await hashPortalPassword(params.password);
+
   return prisma.doctor.create({
     data: {
-      email: params.email,
+      email: params.email.trim().toLowerCase(),
       fullName: params.fullName,
+      passwordHash,
       npiNumber: params.npiNumber,
       licenseState: params.licenseState,
       specialty: params.specialty,
       webexPersonId: params.webexPersonId,
       isActive: params.isActive ?? false,
       kycStatus: params.kycStatus ?? DoctorKycStatus.PENDING
+    }
+  });
+}
+
+export async function createAdminUser(params: {
+  email: string;
+  fullName: string;
+  password: string;
+}) {
+  const passwordHash = await hashPortalPassword(params.password);
+
+  return prisma.adminUser.create({
+    data: {
+      email: params.email.trim().toLowerCase(),
+      fullName: params.fullName,
+      passwordHash
+    }
+  });
+}
+
+export async function resetDoctorPortalPassword(params: { doctorId: string; password: string }) {
+  const passwordHash = await hashPortalPassword(params.password);
+
+  return prisma.doctor.update({
+    where: { id: params.doctorId },
+    data: {
+      passwordHash
     }
   });
 }

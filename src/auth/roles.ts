@@ -1,4 +1,6 @@
+import jwt from "jsonwebtoken";
 import type { Request, Response, NextFunction } from "express";
+import { env } from "../config/env.js";
 
 export type AppRole = "ADMIN" | "DOCTOR";
 
@@ -24,7 +26,60 @@ function parseRole(value: string | undefined): AppRole | null {
   return null;
 }
 
+function parseBearerToken(headerValue: string | undefined): string | null {
+  if (!headerValue) {
+    return null;
+  }
+
+  const [scheme, token] = headerValue.trim().split(" ");
+  if (!scheme || !token || scheme.toLowerCase() !== "bearer") {
+    return null;
+  }
+
+  return token;
+}
+
+function parseJwtAuth(token: string): AuthContext | null {
+  try {
+    const decoded = jwt.verify(token, env.JWT_SECRET);
+    if (!decoded || typeof decoded !== "object") {
+      return null;
+    }
+
+    const role = parseRole("role" in decoded ? String(decoded.role) : undefined);
+    const userId = "sub" in decoded ? String(decoded.sub) : "";
+
+    if (!role || !userId) {
+      return null;
+    }
+
+    return { role, userId };
+  } catch {
+    return null;
+  }
+}
+
 export function devAuthMiddleware(req: AuthedRequest, res: Response, next: NextFunction): void {
+  const bearerToken = parseBearerToken(req.header("authorization") ?? undefined);
+  if (bearerToken) {
+    const jwtAuth = parseJwtAuth(bearerToken);
+    if (jwtAuth) {
+      req.auth = jwtAuth;
+      next();
+      return;
+    }
+
+    res.status(401).json({ error: "Invalid or expired bearer token" });
+    return;
+  }
+
+  if (env.ALLOW_DEV_HEADER_AUTH !== "true") {
+    res.status(401).json({
+      error: "Authorization required"
+    });
+    return;
+  }
+
   const role = parseRole(req.header("x-user-role") ?? undefined);
   const userId = req.header("x-user-id")?.trim();
 

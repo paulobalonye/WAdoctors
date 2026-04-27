@@ -6,6 +6,7 @@ import path from "node:path";
 import { devAuthMiddleware } from "./auth/roles.js";
 import { env } from "./config/env.js";
 import { adminPortalRouter } from "./routes/adminPortal.js";
+import { authRouter } from "./routes/auth.js";
 import { doctorPortalRouter } from "./routes/doctorPortal.js";
 import { webhookRouter } from "./routes/webhooks.js";
 
@@ -39,3 +40,4 @@ app.get("/api/v1/meta", (_req, res) => {
 
 app.use("/api/v1/doctor", devAuthMiddleware, doctorPortalRouter);
 app.use("/api/v1/admin", devAuthMiddleware, adminPortalRouter);
+app.use("/api/v1/auth", authRouter);

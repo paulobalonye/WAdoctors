@@ -5,12 +5,14 @@ import { type AuthedRequest, requireRole } from "../auth/roles.js";
 import {
   assignAdminCaseDoctor,
   createAdminDoctor,
+  createAdminUser,
   getAdminOverview,
   getAdminCase,
   getAdminCaseMessages,
   listAdminCases,
   listAdminDoctors,
   listRecentWebhookEvents,
+  resetDoctorPortalPassword,
   setAdminCaseStatus,
   setDoctorActive,
   setDoctorKycStatus
@@ -36,12 +38,23 @@ const doctorKycBodySchema = z.object({
 const createDoctorBodySchema = z.object({
   email: z.string().email(),
   fullName: z.string().min(2),
+  password: z.string().min(8),
   npiNumber: z.string().min(5),
   licenseState: z.string().length(2).optional(),
   specialty: z.string().optional(),
   webexPersonId: z.string().optional(),
   isActive: z.boolean().optional(),
   kycStatus: z.nativeEnum(DoctorKycStatus).optional()
+});
+
+const createAdminUserBodySchema = z.object({
+  email: z.string().email(),
+  fullName: z.string().min(2),
+  password: z.string().min(8)
+});
+
+const resetDoctorPasswordBodySchema = z.object({
+  password: z.string().min(8)
 });
 
 const caseStatusBodySchema = z.object({
@@ -191,6 +204,49 @@ adminPortalRouter.post("/doctors", async (req: AuthedRequest, res: Response) => 
 
     const doctor = await createAdminDoctor(body.data);
     res.status(201).json(doctor);
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+adminPortalRouter.patch("/doctors/:doctorId/password", async (req: AuthedRequest, res: Response) => {
+  try {
+    const body = resetDoctorPasswordBodySchema.safeParse(req.body);
+    if (!body.success) {
+      res.status(400).json({ error: "Invalid body", details: body.error.flatten().fieldErrors });
+      return;
+    }
+
+    const doctor = await resetDoctorPortalPassword({
+      doctorId: req.params.doctorId,
+      password: body.data.password
+    });
+
+    res.status(200).json({
+      id: doctor.id,
+      email: doctor.email,
+      passwordReset: true
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+adminPortalRouter.post("/admin-users", async (req: AuthedRequest, res: Response) => {
+  try {
+    const body = createAdminUserBodySchema.safeParse(req.body);
+    if (!body.success) {
+      res.status(400).json({ error: "Invalid body", details: body.error.flatten().fieldErrors });
+      return;
+    }
+
+    const adminUser = await createAdminUser(body.data);
+    res.status(201).json({
+      id: adminUser.id,
+      email: adminUser.email,
+      fullName: adminUser.fullName,
+      isActive: adminUser.isActive
+    });
   } catch (error) {
     handleError(res, error);
   }

@@ -1,12 +1,21 @@
 import { apiRequest, buildAuthHeaders, byId, escapeHtml, formatDateTime, setStatus } from "./common.js";
 
-const storageKey = "wadoctors_admin_id";
-let adminId = localStorage.getItem(storageKey) || "";
+const storageKeys = {
+  adminId: "wadoctors_admin_id",
+  adminToken: "wadoctors_admin_token",
+  adminEmail: "wadoctors_admin_email"
+};
+
+let adminId = localStorage.getItem(storageKeys.adminId) || "";
+let adminToken = localStorage.getItem(storageKeys.adminToken) || "";
 let selectedCaseId = "";
 let selectedCaseStatus = "";
 let doctorsCache = [];
 let casesCache = [];
 
+const adminEmailInput = byId("adminEmailInput");
+const adminPasswordInput = byId("adminPasswordInput");
+const adminLoginBtn = byId("adminLoginBtn");
 const adminIdInput = byId("adminIdInput");
 const saveAdminSessionBtn = byId("saveAdminSessionBtn");
 const clearAdminSessionBtn = byId("clearAdminSessionBtn");
@@ -15,6 +24,7 @@ const adminOverviewGrid = byId("adminOverviewGrid");
 
 const createDoctorEmail = byId("createDoctorEmail");
 const createDoctorName = byId("createDoctorName");
+const createDoctorPassword = byId("createDoctorPassword");
 const createDoctorNpi = byId("createDoctorNpi");
 const createDoctorState = byId("createDoctorState");
 const createDoctorSpecialty = byId("createDoctorSpecialty");
@@ -43,8 +53,16 @@ const refreshWebhookEventsBtn = byId("refreshWebhookEventsBtn");
 const adminWebhookTableBody = byId("adminWebhookTableBody");
 
 adminIdInput.value = adminId;
+adminEmailInput.value = localStorage.getItem(storageKeys.adminEmail) || "";
 
 function authHeaders() {
+  if (adminToken) {
+    return {
+      Authorization: `Bearer ${adminToken}`,
+      "content-type": "application/json"
+    };
+  }
+
   return buildAuthHeaders("ADMIN", adminId);
 }
 
@@ -105,6 +123,7 @@ function renderDoctors(doctors) {
             <div class="btnrow">
               <button class="secondary doc-active-btn" data-doctor-id="${escapeHtml(doctor.id)}" data-next-active="${nextActive}">${activeBtn}</button>
               <button class="secondary doc-kyc-btn" data-doctor-id="${escapeHtml(doctor.id)}" data-kyc="APPROVED">Approve KYC</button>
+              <button class="secondary doc-reset-btn" data-doctor-id="${escapeHtml(doctor.id)}">Reset Password</button>
             </div>
           </td>
         </tr>
@@ -150,6 +169,31 @@ function renderDoctors(doctors) {
         setStatus(adminStatusBar, "Doctor KYC updated.", "success");
       } catch (error) {
         setStatus(adminStatusBar, error.message || "Failed to update doctor KYC", "error");
+      }
+    });
+  });
+
+  adminDoctorsTableBody.querySelectorAll(".doc-reset-btn").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const doctorId = button.getAttribute("data-doctor-id");
+      if (!doctorId) {
+        return;
+      }
+
+      const nextPassword = prompt("Enter a new password for this doctor (min 8 chars):");
+      if (!nextPassword) {
+        return;
+      }
+
+      try {
+        await apiRequest(`/api/v1/admin/doctors/${doctorId}/password`, {
+          method: "PATCH",
+          headers: authHeaders(),
+          body: JSON.stringify({ password: nextPassword })
+        });
+        setStatus(adminStatusBar, "Doctor password reset.", "success");
+      } catch (error) {
+        setStatus(adminStatusBar, error.message || "Failed to reset doctor password", "error");
       }
     });
   });
@@ -237,6 +281,32 @@ function renderWebhookEvents(events) {
     .join("");
 }
 
+async function loginAdmin() {
+  const email = adminEmailInput.value.trim().toLowerCase();
+  const password = adminPasswordInput.value;
+  if (!email || !password) {
+    throw new Error("Email and password are required");
+  }
+
+  const response = await apiRequest("/api/v1/auth/login", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      role: "ADMIN",
+      email,
+      password
+    })
+  });
+
+  adminToken = response.token;
+  adminId = response.user.id;
+  localStorage.setItem(storageKeys.adminToken, adminToken);
+  localStorage.setItem(storageKeys.adminId, adminId);
+  localStorage.setItem(storageKeys.adminEmail, email);
+  adminPasswordInput.value = "";
+  adminIdInput.value = adminId;
+}
+
 async function loadOverview() {
   const data = await apiRequest("/api/v1/admin/overview", { headers: authHeaders() });
   renderOverview(data);
@@ -285,6 +355,7 @@ async function createDoctor() {
   const body = {
     email: createDoctorEmail.value.trim(),
     fullName: createDoctorName.value.trim(),
+    password: createDoctorPassword.value,
     npiNumber: createDoctorNpi.value.trim(),
     licenseState: createDoctorState.value.trim().toUpperCase() || undefined,
     specialty: createDoctorSpecialty.value.trim() || undefined,
@@ -301,6 +372,7 @@ async function createDoctor() {
 
   createDoctorEmail.value = "";
   createDoctorName.value = "";
+  createDoctorPassword.value = "";
   createDoctorNpi.value = "";
   createDoctorState.value = "";
   createDoctorSpecialty.value = "";
@@ -331,8 +403,8 @@ async function assignSelectedCase(doctorId) {
 }
 
 async function refreshAll() {
-  if (!adminId) {
-    setStatus(adminStatusBar, "Enter Admin ID to begin.", "error");
+  if (!adminToken && !adminId) {
+    setStatus(adminStatusBar, "Login or enter Admin ID to begin.", "error");
     return;
   }
 
@@ -342,8 +414,17 @@ async function refreshAll() {
   await loadCases();
   await loadCaseMessages();
   await loadWebhookEvents();
-  setStatus(adminStatusBar, "Admin portal synced.", "success");
+  setStatus(adminStatusBar, adminToken ? "Admin portal authenticated." : "Admin portal synced (dev mode).", "success");
 }
+
+adminLoginBtn.addEventListener("click", async () => {
+  try {
+    await loginAdmin();
+    await refreshAll();
+  } catch (error) {
+    setStatus(adminStatusBar, error.message || "Admin login failed", "error");
+  }
+});
 
 saveAdminSessionBtn.addEventListener("click", async () => {
   try {
@@ -351,7 +432,9 @@ saveAdminSessionBtn.addEventListener("click", async () => {
     if (!adminId) {
       throw new Error("Admin ID is required");
     }
-    localStorage.setItem(storageKey, adminId);
+    adminToken = "";
+    localStorage.removeItem(storageKeys.adminToken);
+    localStorage.setItem(storageKeys.adminId, adminId);
     await refreshAll();
   } catch (error) {
     setStatus(adminStatusBar, error.message || "Failed to set admin session", "error");
@@ -360,10 +443,13 @@ saveAdminSessionBtn.addEventListener("click", async () => {
 
 clearAdminSessionBtn.addEventListener("click", () => {
   adminId = "";
+  adminToken = "";
   selectedCaseId = "";
   selectedCaseStatus = "";
-  localStorage.removeItem(storageKey);
+  localStorage.removeItem(storageKeys.adminId);
+  localStorage.removeItem(storageKeys.adminToken);
   adminIdInput.value = "";
+  adminPasswordInput.value = "";
   adminOverviewGrid.innerHTML = "";
   adminDoctorsTableBody.innerHTML = "";
   adminCasesTableBody.innerHTML = "";
