@@ -1,6 +1,7 @@
 export type RelayQueueJobAdapter = {
   id: string | null;
   name: string;
+  caseId?: string | null;
   failedReason?: string | null;
   attemptsMade?: number | null;
   finishedOn?: number | null;
@@ -106,10 +107,12 @@ export async function retryRecentFailedRelayJobsByName(
   params: {
     limit: number;
     name: string;
+    caseId?: string;
   }
 ) {
   const requestedLimit = normalizeLimit(params.limit, 1, 50);
   const normalizedName = params.name.trim();
+  const normalizedCaseId = params.caseId?.trim() || "";
   const jobs = await adapter.getFailedJobs(requestedLimit);
   const failures: Array<{ jobId: string; reason: string }> = [];
   let matched = 0;
@@ -117,6 +120,9 @@ export async function retryRecentFailedRelayJobsByName(
 
   for (const job of jobs) {
     if (job.name !== normalizedName) {
+      continue;
+    }
+    if (normalizedCaseId && job.caseId?.trim() !== normalizedCaseId) {
       continue;
     }
 

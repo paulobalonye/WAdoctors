@@ -9,6 +9,7 @@ import {
 
 function buildFailedJob(params: {
   id: string;
+  caseId?: string;
   state?: string;
   retryImpl?: () => Promise<void>;
 }) {
@@ -21,6 +22,7 @@ function buildFailedJob(params: {
   return {
     id: params.id,
     name: "PATIENT_TO_WEBEX",
+    caseId: params.caseId ?? "case-default",
     failedReason: "No Webex room configured",
     attemptsMade: 3,
     finishedOn: 1710000000000,
@@ -99,9 +101,9 @@ describe("retryRecentFailedRelayJobs", () => {
 
 describe("retryRecentFailedRelayJobsByName", () => {
   it("retries only matching failed jobs and ignores others", async () => {
-    const webexJob = buildFailedJob({ id: "job-webex" });
+    const webexJob = buildFailedJob({ id: "job-webex", caseId: "case-1" });
     const whatsappJob = {
-      ...buildFailedJob({ id: "job-whatsapp" }),
+      ...buildFailedJob({ id: "job-whatsapp", caseId: "case-1" }),
       name: "DOCTOR_TO_WHATSAPP"
     };
 
@@ -124,6 +126,31 @@ describe("retryRecentFailedRelayJobsByName", () => {
     expect(result.failed).toBe(0);
     expect(webexJob.retry).toHaveBeenCalledTimes(1);
     expect(whatsappJob.retry).not.toHaveBeenCalled();
+  });
+
+  it("supports optional caseId filtering for targeted retries", async () => {
+    const targetCaseJob = buildFailedJob({ id: "job-target", caseId: "case-target" });
+    const otherCaseJob = buildFailedJob({ id: "job-other", caseId: "case-other" });
+
+    const adapter: RelayQueueAdapter = {
+      getJobById: async () => null,
+      getFailedJobs: async () => [targetCaseJob, otherCaseJob],
+      cleanFailed: async () => []
+    };
+
+    const result = await retryRecentFailedRelayJobsByName(adapter, {
+      limit: 20,
+      name: "PATIENT_TO_WEBEX",
+      caseId: "case-target"
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.examined).toBe(2);
+    expect(result.matched).toBe(1);
+    expect(result.retried).toBe(1);
+    expect(result.failed).toBe(0);
+    expect(targetCaseJob.retry).toHaveBeenCalledTimes(1);
+    expect(otherCaseJob.retry).not.toHaveBeenCalled();
   });
 });
 

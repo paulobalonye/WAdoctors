@@ -51,6 +51,10 @@ function buildRelayQueueAdapter(queue: RelayQueueInstance): RelayQueueAdapter {
       return {
         id: job.id != null ? String(job.id) : null,
         name: job.name,
+        caseId:
+          job.data && typeof job.data === "object" && "caseId" in job.data
+            ? String((job.data as { caseId?: unknown }).caseId ?? "")
+            : null,
         failedReason: job.failedReason,
         attemptsMade: job.attemptsMade,
         finishedOn: job.finishedOn,
@@ -67,6 +71,10 @@ function buildRelayQueueAdapter(queue: RelayQueueInstance): RelayQueueAdapter {
       return jobs.map((job) => ({
         id: job.id != null ? String(job.id) : null,
         name: job.name,
+        caseId:
+          job.data && typeof job.data === "object" && "caseId" in job.data
+            ? String((job.data as { caseId?: unknown }).caseId ?? "")
+            : null,
         failedReason: job.failedReason,
         attemptsMade: job.attemptsMade,
         finishedOn: job.finishedOn,
@@ -540,12 +548,15 @@ export async function retryAdminRecentFailedRelayJobs(limit: number) {
   };
 }
 
-export async function retryAdminRecentWebexFailedRelayJobs(limit: number) {
+export async function retryAdminRecentWebexFailedRelayJobs(params: {
+  limit: number;
+  caseId?: string;
+}) {
   const access = getRelayQueueAccess();
   if ("reason" in access) {
     return {
       ok: false,
-      requestedLimit: Math.min(Math.max(limit, 1), 50),
+      requestedLimit: Math.min(Math.max(params.limit, 1), 50),
       examined: 0,
       matched: 0,
       retried: 0,
@@ -557,8 +568,9 @@ export async function retryAdminRecentWebexFailedRelayJobs(limit: number) {
 
   const adapter = buildRelayQueueAdapter(access.queue);
   const result = await retryRecentFailedRelayJobsByName(adapter, {
-    limit,
-    name: "PATIENT_TO_WEBEX"
+    limit: params.limit,
+    name: "PATIENT_TO_WEBEX",
+    caseId: params.caseId
   });
 
   return {
@@ -567,12 +579,15 @@ export async function retryAdminRecentWebexFailedRelayJobs(limit: number) {
   };
 }
 
-export async function retryAdminRecentWhatsAppFailedRelayJobs(limit: number) {
+export async function retryAdminRecentWhatsAppFailedRelayJobs(params: {
+  limit: number;
+  caseId?: string;
+}) {
   const access = getRelayQueueAccess();
   if ("reason" in access) {
     return {
       ok: false,
-      requestedLimit: Math.min(Math.max(limit, 1), 50),
+      requestedLimit: Math.min(Math.max(params.limit, 1), 50),
       examined: 0,
       matched: 0,
       retried: 0,
@@ -584,8 +599,9 @@ export async function retryAdminRecentWhatsAppFailedRelayJobs(limit: number) {
 
   const adapter = buildRelayQueueAdapter(access.queue);
   const result = await retryRecentFailedRelayJobsByName(adapter, {
-    limit,
-    name: "DOCTOR_TO_WHATSAPP"
+    limit: params.limit,
+    name: "DOCTOR_TO_WHATSAPP",
+    caseId: params.caseId
   });
 
   return {

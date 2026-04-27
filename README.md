@@ -118,6 +118,8 @@ pnpm worker:relay
 - `POST /api/v1/admin/relay/failed/retry-whatsapp`
 - `POST /api/v1/admin/relay/failed/clear`
 
+Relay retry request bodies may include optional `caseId` for targeted retries.
+
 ## Portal auth
 
 Primary mode:

@@ -257,6 +257,10 @@
               <label for="adminRelayClearGraceSeconds">Clear Grace (seconds)</label>
               <input id="adminRelayClearGraceSeconds" type="number" min="0" max="604800" value="300" />
             </div>
+            <div class="field">
+              <label for="adminRelayCaseId">Target Case ID (optional)</label>
+              <input id="adminRelayCaseId" placeholder="case UUID" />
+            </div>
             <div class="btnrow" style="align-items: end">
               <button id="refreshRelayHealthBtn" class="secondary">Refresh Relay Health</button>
               <button id="retryRecentRelayFailedBtn" class="secondary">Retry Recent Failed</button>

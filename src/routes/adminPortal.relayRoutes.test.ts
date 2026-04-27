@@ -72,4 +72,23 @@ describe("admin relay routes", () => {
       error: "Invalid body"
     });
   });
+
+  it("accepts caseId in targeted retry payloads", async () => {
+    (env as { NODE_ENV: "development" | "test" | "production" }).NODE_ENV = "test";
+    (env as { ALLOW_DEV_HEADER_AUTH: "true" | "false" }).ALLOW_DEV_HEADER_AUTH = "true";
+    (env as { RELAY_DISPATCH_MODE: "inline" | "queue" }).RELAY_DISPATCH_MODE = "inline";
+
+    const res = await request(app)
+      .post("/api/v1/admin/relay/failed/retry-webex")
+      .set(adminHeaders())
+      .send({ limit: 10, caseId: "case-123" })
+      .expect(200);
+
+    expect(res.body).toMatchObject({
+      ok: false,
+      requestedLimit: 10,
+      matched: 0,
+      retried: 0
+    });
+  });
 });

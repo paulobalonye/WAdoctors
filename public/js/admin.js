@@ -60,6 +60,7 @@ const adminWebhookSummaryGrid = byId("adminWebhookSummaryGrid");
 const adminWebhookTableBody = byId("adminWebhookTableBody");
 const adminRelayFailedLimit = byId("adminRelayFailedLimit");
 const adminRelayClearGraceSeconds = byId("adminRelayClearGraceSeconds");
+const adminRelayCaseId = byId("adminRelayCaseId");
 const refreshRelayHealthBtn = byId("refreshRelayHealthBtn");
 const retryRecentRelayFailedBtn = byId("retryRecentRelayFailedBtn");
 const retryWebexRelayFailedBtn = byId("retryWebexRelayFailedBtn");
@@ -606,12 +607,14 @@ async function retryRecentRelayFailedJobs() {
   const failedLimit = Number.parseInt(adminRelayFailedLimit.value, 10);
   const normalizedFailedLimit =
     Number.isFinite(failedLimit) && failedLimit >= 1 && failedLimit <= 50 ? failedLimit : 20;
+  const caseId = adminRelayCaseId.value.trim();
 
   return apiRequest("/api/v1/admin/relay/failed/retry", {
     method: "POST",
     headers: authHeaders(),
     body: JSON.stringify({
-      limit: normalizedFailedLimit
+      limit: normalizedFailedLimit,
+      ...(caseId ? { caseId } : {})
     })
   });
 }
@@ -620,12 +623,14 @@ async function retryRecentWebexRelayFailedJobs() {
   const failedLimit = Number.parseInt(adminRelayFailedLimit.value, 10);
   const normalizedFailedLimit =
     Number.isFinite(failedLimit) && failedLimit >= 1 && failedLimit <= 50 ? failedLimit : 20;
+  const caseId = adminRelayCaseId.value.trim();
 
   return apiRequest("/api/v1/admin/relay/failed/retry-webex", {
     method: "POST",
     headers: authHeaders(),
     body: JSON.stringify({
-      limit: normalizedFailedLimit
+      limit: normalizedFailedLimit,
+      ...(caseId ? { caseId } : {})
     })
   });
 }
@@ -634,12 +639,14 @@ async function retryRecentWhatsAppRelayFailedJobs() {
   const failedLimit = Number.parseInt(adminRelayFailedLimit.value, 10);
   const normalizedFailedLimit =
     Number.isFinite(failedLimit) && failedLimit >= 1 && failedLimit <= 50 ? failedLimit : 20;
+  const caseId = adminRelayCaseId.value.trim();
 
   return apiRequest("/api/v1/admin/relay/failed/retry-whatsapp", {
     method: "POST",
     headers: authHeaders(),
     body: JSON.stringify({
-      limit: normalizedFailedLimit
+      limit: normalizedFailedLimit,
+      ...(caseId ? { caseId } : {})
     })
   });
 }
@@ -791,6 +798,7 @@ clearAdminSessionBtn.addEventListener("click", () => {
   adminRelayHealthGrid.innerHTML = "";
   adminRelayHealthNote.textContent = "";
   adminRelayFailedJobsBody.innerHTML = "";
+  adminRelayCaseId.value = "";
   setStatus(adminStatusBar, "Admin session cleared.");
 });
 

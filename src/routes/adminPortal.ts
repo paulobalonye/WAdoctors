@@ -88,7 +88,8 @@ const caseAssignBodySchema = z.object({
 });
 
 const retryRecentRelayBodySchema = z.object({
-  limit: z.number().int().min(1).max(50).optional()
+  limit: z.number().int().min(1).max(50).optional(),
+  caseId: z.string().min(1).max(128).optional()
 });
 
 const clearFailedRelayBodySchema = z.object({
@@ -425,7 +426,10 @@ adminPortalRouter.post("/relay/failed/retry-webex", async (req: AuthedRequest, r
       return;
     }
 
-    const result = await retryAdminRecentWebexFailedRelayJobs(body.data.limit ?? 10);
+    const result = await retryAdminRecentWebexFailedRelayJobs({
+      limit: body.data.limit ?? 10,
+      caseId: body.data.caseId
+    });
     res.status(200).json(result);
   } catch (error) {
     handleError(res, error);
@@ -440,7 +444,10 @@ adminPortalRouter.post("/relay/failed/retry-whatsapp", async (req: AuthedRequest
       return;
     }
 
-    const result = await retryAdminRecentWhatsAppFailedRelayJobs(body.data.limit ?? 10);
+    const result = await retryAdminRecentWhatsAppFailedRelayJobs({
+      limit: body.data.limit ?? 10,
+      caseId: body.data.caseId
+    });
     res.status(200).json(result);
   } catch (error) {
     handleError(res, error);
