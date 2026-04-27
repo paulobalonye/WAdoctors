@@ -674,6 +674,12 @@ function renderTriageEvaluation(result) {
   const redFlags = Array.isArray(triage.redFlags) && triage.redFlags.length
     ? triage.redFlags.join(", ")
     : "-";
+  const transitions = Array.isArray(result.transitions) ? result.transitions : [];
+  const transitionText = transitions.length
+    ? transitions
+        .map((item) => `${item.from || "-"} -> ${item.to || "-"} (${item.reason || "-"})`)
+        .join(" | ")
+    : "-";
 
   adminTriageEvalResult.innerHTML = `
     <span class="badge">Source ${escapeHtml(String(triage.source || "-"))}</span>
@@ -681,8 +687,10 @@ function renderTriageEvaluation(result) {
     <span class="badge">Urgency ${escapeHtml(String(triage.urgencyScore ?? "-"))}</span>
     <span class="badge">Baseline ${escapeHtml(String(triage.baselineUrgency ?? "-"))}</span>
     <span class="badge">Confidence ${escapeHtml(confidence)}</span>
+    <span class="badge">Final Status ${escapeHtml(String(result.finalStatus || "-"))}</span>
     <div class="muted" style="margin-top: 8px">${escapeHtml(String(triage.summary || "-"))}</div>
     <div class="muted" style="margin-top: 4px">Red flags: ${escapeHtml(redFlags)}</div>
+    <div class="muted" style="margin-top: 4px">Transitions: ${escapeHtml(transitionText)}</div>
   `;
 }
 
