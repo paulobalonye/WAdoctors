@@ -7,6 +7,7 @@ import { defaultDoctorAvailability } from "../cases/doctorAvailability.js";
 import { buildRelayQueueDisabledSummary, buildRelayQueueHealthSummary } from "./relayHealth.js";
 import {
   clearFailedRelayJobs,
+  retryRecentFailedRelayJobsByName,
   retryRecentFailedRelayJobs,
   retrySingleFailedRelayJob,
   type RelayQueueAdapter
@@ -533,6 +534,33 @@ export async function retryAdminRecentFailedRelayJobs(limit: number) {
 
   const adapter = buildRelayQueueAdapter(access.queue);
   const result = await retryRecentFailedRelayJobs(adapter, limit);
+  return {
+    ...result,
+    reason: result.ok ? undefined : result.failures[0]?.reason
+  };
+}
+
+export async function retryAdminRecentWebexFailedRelayJobs(limit: number) {
+  const access = getRelayQueueAccess();
+  if ("reason" in access) {
+    return {
+      ok: false,
+      requestedLimit: Math.min(Math.max(limit, 1), 50),
+      examined: 0,
+      matched: 0,
+      retried: 0,
+      failed: 0,
+      failures: [] as Array<{ jobId: string; reason: string }>,
+      reason: access.reason
+    };
+  }
+
+  const adapter = buildRelayQueueAdapter(access.queue);
+  const result = await retryRecentFailedRelayJobsByName(adapter, {
+    limit,
+    name: "PATIENT_TO_WEBEX"
+  });
+
   return {
     ...result,
     reason: result.ok ? undefined : result.failures[0]?.reason

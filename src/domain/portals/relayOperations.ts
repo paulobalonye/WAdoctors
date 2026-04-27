@@ -101,6 +101,49 @@ export async function retryRecentFailedRelayJobs(adapter: RelayQueueAdapter, lim
   };
 }
 
+export async function retryRecentFailedRelayJobsByName(
+  adapter: RelayQueueAdapter,
+  params: {
+    limit: number;
+    name: string;
+  }
+) {
+  const requestedLimit = normalizeLimit(params.limit, 1, 50);
+  const normalizedName = params.name.trim();
+  const jobs = await adapter.getFailedJobs(requestedLimit);
+  const failures: Array<{ jobId: string; reason: string }> = [];
+  let matched = 0;
+  let retried = 0;
+
+  for (const job of jobs) {
+    if (job.name !== normalizedName) {
+      continue;
+    }
+
+    matched += 1;
+    try {
+      await job.retry();
+      retried += 1;
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : "Retry failed";
+      failures.push({
+        jobId: job.id?.trim() || "unknown",
+        reason
+      });
+    }
+  }
+
+  return {
+    ok: failures.length === 0,
+    requestedLimit,
+    examined: jobs.length,
+    matched,
+    retried,
+    failed: failures.length,
+    failures
+  };
+}
+
 export async function clearFailedRelayJobs(
   adapter: RelayQueueAdapter,
   params: {

@@ -17,6 +17,7 @@ import {
   listRecentWebhookEvents,
   retryAdminRelayFailedJob,
   retryAdminRecentFailedRelayJobs,
+  retryAdminRecentWebexFailedRelayJobs,
   resetDoctorPortalPassword,
   setDoctorSchedule,
   setAdminCaseStatus,
@@ -409,6 +410,21 @@ adminPortalRouter.post("/relay/failed/retry", async (req: AuthedRequest, res: Re
     }
 
     const result = await retryAdminRecentFailedRelayJobs(body.data.limit ?? 10);
+    res.status(200).json(result);
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+adminPortalRouter.post("/relay/failed/retry-webex", async (req: AuthedRequest, res: Response) => {
+  try {
+    const body = retryRecentRelayBodySchema.safeParse(req.body ?? {});
+    if (!body.success) {
+      res.status(400).json({ error: "Invalid body", details: body.error.flatten().fieldErrors });
+      return;
+    }
+
+    const result = await retryAdminRecentWebexFailedRelayJobs(body.data.limit ?? 10);
     res.status(200).json(result);
   } catch (error) {
     handleError(res, error);

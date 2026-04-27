@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   clearFailedRelayJobs,
+  retryRecentFailedRelayJobsByName,
   retryRecentFailedRelayJobs,
   retrySingleFailedRelayJob,
   type RelayQueueAdapter
@@ -93,6 +94,36 @@ describe("retryRecentFailedRelayJobs", () => {
         reason: "retry failed"
       }
     ]);
+  });
+});
+
+describe("retryRecentFailedRelayJobsByName", () => {
+  it("retries only matching failed jobs and ignores others", async () => {
+    const webexJob = buildFailedJob({ id: "job-webex" });
+    const whatsappJob = {
+      ...buildFailedJob({ id: "job-whatsapp" }),
+      name: "DOCTOR_TO_WHATSAPP"
+    };
+
+    const adapter: RelayQueueAdapter = {
+      getJobById: async () => null,
+      getFailedJobs: async () => [webexJob, whatsappJob],
+      cleanFailed: async () => []
+    };
+
+    const result = await retryRecentFailedRelayJobsByName(adapter, {
+      limit: 20,
+      name: "PATIENT_TO_WEBEX"
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.requestedLimit).toBe(20);
+    expect(result.examined).toBe(2);
+    expect(result.matched).toBe(1);
+    expect(result.retried).toBe(1);
+    expect(result.failed).toBe(0);
+    expect(webexJob.retry).toHaveBeenCalledTimes(1);
+    expect(whatsappJob.retry).not.toHaveBeenCalled();
   });
 });
 
