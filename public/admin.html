@@ -268,6 +268,59 @@
         </div>
 
         <div class="panel">
+          <h2>Triage Insights</h2>
+          <div class="grid-3">
+            <div class="field">
+              <label for="adminTriageWindowHours">Window (hours)</label>
+              <input id="adminTriageWindowHours" type="number" min="1" max="168" value="24" />
+            </div>
+            <div class="field">
+              <label for="adminTriageLimit">Case Limit</label>
+              <input id="adminTriageLimit" type="number" min="1" max="200" value="100" />
+            </div>
+            <div class="btnrow" style="align-items: end">
+              <button id="refreshTriageSummaryBtn" class="secondary">Refresh Triage Summary</button>
+            </div>
+          </div>
+          <div id="adminTriageSummaryGrid" class="grid-3" style="margin-top: 10px"></div>
+          <div class="grid-3" style="margin-top: 10px">
+            <div class="scrollbox">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Source</th>
+                    <th>Count</th>
+                  </tr>
+                </thead>
+                <tbody id="adminTriageSourceBody"></tbody>
+              </table>
+            </div>
+            <div class="scrollbox">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Route</th>
+                    <th>Count</th>
+                  </tr>
+                </thead>
+                <tbody id="adminTriageRouteBody"></tbody>
+              </table>
+            </div>
+            <div class="scrollbox">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Red Flag</th>
+                    <th>Count</th>
+                  </tr>
+                </thead>
+                <tbody id="adminTriageRedFlagsBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
           <h2>Relay Queue Health</h2>
           <div class="grid-3">
             <div class="field">

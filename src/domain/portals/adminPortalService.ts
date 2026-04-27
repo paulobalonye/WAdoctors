@@ -15,6 +15,7 @@ import {
   retrySingleFailedRelayJob,
   type RelayQueueAdapter
 } from "./relayOperations.js";
+import { buildTriageInsightsSummary } from "./triageInsights.js";
 import { buildWebhookSummary } from "./webhookSummary.js";
 
 const ACTIVE_CASE_STATUSES: CaseStatus[] = ["NEW", "TRIAGING", "ASSIGNED", "IN_PROGRESS", "ESCALATED"];
@@ -562,6 +563,42 @@ export async function getRelayQueueHealth(failedLimit: number) {
       failedJobs: []
     });
   }
+}
+
+export async function getAdminTriageSummary(params: {
+  windowHours: number;
+  limit: number;
+}) {
+  const safeWindowHours = Math.min(Math.max(params.windowHours, 1), 24 * 7);
+  const safeLimit = Math.min(Math.max(params.limit, 1), 200);
+  const windowStart = new Date(Date.now() - safeWindowHours * 60 * 60 * 1000);
+
+  const cases = await prisma.triageCase.findMany({
+    where: {
+      createdAt: {
+        gte: windowStart
+      }
+    },
+    select: {
+      aiSummary: true,
+      aiTranscript: true
+    },
+    orderBy: {
+      createdAt: "desc"
+    },
+    take: safeLimit
+  });
+
+  return buildTriageInsightsSummary({
+    windowHours: safeWindowHours,
+    limit: safeLimit,
+    cases: cases.map((item) => ({
+      triage: buildCaseTriageView({
+        aiSummary: item.aiSummary,
+        aiTranscript: item.aiTranscript
+      })
+    }))
+  });
 }
 
 export async function retryAdminRelayFailedJob(jobId: string) {

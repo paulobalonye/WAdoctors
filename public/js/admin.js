@@ -62,6 +62,13 @@ const refreshWebhookSummaryBtn = byId("refreshWebhookSummaryBtn");
 const adminWebhookWindowHours = byId("adminWebhookWindowHours");
 const adminWebhookSummaryGrid = byId("adminWebhookSummaryGrid");
 const adminWebhookTableBody = byId("adminWebhookTableBody");
+const refreshTriageSummaryBtn = byId("refreshTriageSummaryBtn");
+const adminTriageWindowHours = byId("adminTriageWindowHours");
+const adminTriageLimit = byId("adminTriageLimit");
+const adminTriageSummaryGrid = byId("adminTriageSummaryGrid");
+const adminTriageSourceBody = byId("adminTriageSourceBody");
+const adminTriageRouteBody = byId("adminTriageRouteBody");
+const adminTriageRedFlagsBody = byId("adminTriageRedFlagsBody");
 const adminRelayFailedLimit = byId("adminRelayFailedLimit");
 const adminRelayClearGraceSeconds = byId("adminRelayClearGraceSeconds");
 const adminRelayCaseId = byId("adminRelayCaseId");
@@ -556,6 +563,85 @@ function renderWebhookSummary(summary) {
     .join("");
 }
 
+function renderTriageSummary(summary) {
+  if (!summary || typeof summary !== "object") {
+    adminTriageSummaryGrid.innerHTML = `<div class="muted">Triage summary unavailable.</div>`;
+    adminTriageSourceBody.innerHTML = `<tr><td colspan="2" class="muted">No data.</td></tr>`;
+    adminTriageRouteBody.innerHTML = `<tr><td colspan="2" class="muted">No data.</td></tr>`;
+    adminTriageRedFlagsBody.innerHTML = `<tr><td colspan="2" class="muted">No data.</td></tr>`;
+    return;
+  }
+
+  const aiCount = Number(summary.sourceCounts?.AI ?? 0);
+  const heuristicCount = Number(summary.sourceCounts?.HEURISTIC ?? 0);
+  const triagedTotal = aiCount + heuristicCount;
+  const aiShare = triagedTotal > 0 ? `${Math.round((aiCount / triagedTotal) * 100)}%` : "0%";
+  const confidence = summary.confidenceBands || {};
+
+  const cards = [
+    {
+      label: "Cases in Window",
+      value: String(summary.totalCases ?? 0),
+      meta: `Window ${summary.windowHours ?? 24}h`
+    },
+    {
+      label: "Cases with Triage",
+      value: String(summary.withTriage ?? 0),
+      meta: `Without triage: ${summary.withoutTriage ?? 0}`
+    },
+    {
+      label: "AI Triage Share",
+      value: aiShare,
+      meta: `${aiCount} AI / ${heuristicCount} heuristic`
+    },
+    {
+      label: "Confidence Bands",
+      value: `H${confidence.HIGH ?? 0} M${confidence.MEDIUM ?? 0} L${confidence.LOW ?? 0}`,
+      meta: `Unknown: ${confidence.UNKNOWN ?? 0}`
+    }
+  ];
+
+  adminTriageSummaryGrid.innerHTML = cards
+    .map((card) => {
+      return `
+        <div class="metric">
+          <div class="k">${escapeHtml(card.label)}</div>
+          <div class="v">${escapeHtml(card.value)}</div>
+          <div class="muted">${escapeHtml(card.meta)}</div>
+        </div>
+      `;
+    })
+    .join("");
+
+  const sourceRows = [
+    { source: "AI", count: aiCount },
+    { source: "HEURISTIC", count: heuristicCount }
+  ];
+  adminTriageSourceBody.innerHTML = sourceRows
+    .map((row) => `<tr><td>${escapeHtml(row.source)}</td><td>${escapeHtml(String(row.count))}</td></tr>`)
+    .join("");
+
+  const routeRows = Array.isArray(summary.routeCounts) ? summary.routeCounts : [];
+  adminTriageRouteBody.innerHTML = routeRows.length
+    ? routeRows
+        .map(
+          (row) =>
+            `<tr><td>${escapeHtml(String(row.route || "-"))}</td><td>${escapeHtml(String(row.count ?? 0))}</td></tr>`
+        )
+        .join("")
+    : `<tr><td colspan="2" class="muted">No route data.</td></tr>`;
+
+  const redFlagRows = Array.isArray(summary.topRedFlags) ? summary.topRedFlags : [];
+  adminTriageRedFlagsBody.innerHTML = redFlagRows.length
+    ? redFlagRows
+        .map(
+          (row) =>
+            `<tr><td>${escapeHtml(String(row.flag || "-"))}</td><td>${escapeHtml(String(row.count ?? 0))}</td></tr>`
+        )
+        .join("")
+    : `<tr><td colspan="2" class="muted">No red flags recorded.</td></tr>`;
+}
+
 function getRelayFailedLimit(fallback = 20, max = 50) {
   const failedLimit = Number.parseInt(adminRelayFailedLimit.value, 10);
   if (!Number.isFinite(failedLimit) || failedLimit < 1) {
@@ -788,6 +874,20 @@ async function loadWebhookSummary() {
   renderWebhookSummary(data);
 }
 
+async function loadTriageSummary() {
+  const windowHours = Number.parseInt(adminTriageWindowHours.value, 10);
+  const normalizedWindowHours =
+    Number.isFinite(windowHours) && windowHours >= 1 && windowHours <= 168 ? windowHours : 24;
+  const limit = Number.parseInt(adminTriageLimit.value, 10);
+  const normalizedLimit = Number.isFinite(limit) && limit >= 1 && limit <= 200 ? limit : 100;
+
+  const data = await apiRequest(
+    `/api/v1/admin/triage/summary?windowHours=${encodeURIComponent(String(normalizedWindowHours))}&limit=${encodeURIComponent(String(normalizedLimit))}`,
+    { headers: authHeaders() }
+  );
+  renderTriageSummary(data);
+}
+
 async function loadRelayHealth() {
   const normalizedFailedLimit = getRelayFailedLimit(20, 50);
 
@@ -984,6 +1084,7 @@ async function refreshAll() {
   await loadCases();
   await loadCaseMessages();
   await loadWebhookSummary();
+  await loadTriageSummary();
   await loadWebhookEvents();
   await refreshRelayDashboard();
   setStatus(adminStatusBar, adminToken ? "Admin portal authenticated." : "Admin portal synced (dev mode).", "success");
@@ -1030,6 +1131,10 @@ clearAdminSessionBtn.addEventListener("click", () => {
   adminCaseMessagesList.innerHTML = "";
   adminWebhookTableBody.innerHTML = "";
   adminWebhookSummaryGrid.innerHTML = "";
+  adminTriageSummaryGrid.innerHTML = "";
+  adminTriageSourceBody.innerHTML = "";
+  adminTriageRouteBody.innerHTML = "";
+  adminTriageRedFlagsBody.innerHTML = "";
   adminRelayHealthGrid.innerHTML = "";
   adminRelayHealthNote.textContent = "";
   adminRelayFailedJobsBody.innerHTML = "";
@@ -1144,6 +1249,15 @@ refreshWebhookSummaryBtn.addEventListener("click", async () => {
     setStatus(adminStatusBar, "Webhook summary refreshed.", "success");
   } catch (error) {
     setStatus(adminStatusBar, error.message || "Failed to refresh webhook summary", "error");
+  }
+});
+
+refreshTriageSummaryBtn.addEventListener("click", async () => {
+  try {
+    await loadTriageSummary();
+    setStatus(adminStatusBar, "Triage summary refreshed.", "success");
+  } catch (error) {
+    setStatus(adminStatusBar, error.message || "Failed to refresh triage summary", "error");
   }
 });
 

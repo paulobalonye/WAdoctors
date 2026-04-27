@@ -118,6 +118,7 @@ pnpm dev:queue
 - `POST /api/v1/admin/admin-users`
 - `GET /api/v1/admin/webhooks`
 - `GET /api/v1/admin/webhooks/summary`
+- `GET /api/v1/admin/triage/summary`
 - `GET /api/v1/admin/relay/health`
 - `GET /api/v1/admin/relay/failed`
 - `POST /api/v1/admin/relay/failed/:jobId/retry`
@@ -175,6 +176,7 @@ Safety guard:
 17. AI triage metadata is persisted on new cases (`aiSummary` + structured `aiTranscript`) and shown in admin/doctor case context.
 18. Admin and doctor case-list payloads now include normalized `triage` objects for source, route, confidence, red flags, and summary.
 19. Webex case-room bootstrap message now includes triage context (source, route, confidence, red flags, summary).
+20. Admin triage insights summary endpoint and portal panel for source/route/confidence/red-flag monitoring.
 
 ## Next implementation steps
 

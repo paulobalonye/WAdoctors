@@ -114,6 +114,37 @@ describe("admin relay routes", () => {
     });
   });
 
+  it("returns triage summary metrics", async () => {
+    (env as { NODE_ENV: "development" | "test" | "production" }).NODE_ENV = "test";
+    (env as { ALLOW_DEV_HEADER_AUTH: "true" | "false" }).ALLOW_DEV_HEADER_AUTH = "true";
+
+    const res = await request(app)
+      .get("/api/v1/admin/triage/summary?windowHours=24&limit=100")
+      .set(adminHeaders())
+      .expect(200);
+
+    expect(res.body).toMatchObject({
+      windowHours: 24,
+      limit: 100,
+      generatedAt: expect.any(String),
+      totalCases: expect.any(Number),
+      withTriage: expect.any(Number),
+      withoutTriage: expect.any(Number),
+      sourceCounts: {
+        AI: expect.any(Number),
+        HEURISTIC: expect.any(Number)
+      },
+      confidenceBands: {
+        HIGH: expect.any(Number),
+        MEDIUM: expect.any(Number),
+        LOW: expect.any(Number),
+        UNKNOWN: expect.any(Number)
+      },
+      routeCounts: expect.any(Array),
+      topRedFlags: expect.any(Array)
+    });
+  });
+
   it("returns structured disabled response for failed relay list in inline mode", async () => {
     (env as { NODE_ENV: "development" | "test" | "production" }).NODE_ENV = "test";
     (env as { ALLOW_DEV_HEADER_AUTH: "true" | "false" }).ALLOW_DEV_HEADER_AUTH = "true";

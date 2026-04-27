@@ -9,6 +9,7 @@ import {
   createAdminUser,
   clearAdminFailedRelayJobs,
   getAdminIntegrationStatus,
+  getAdminTriageSummary,
   getRelayQueueHealth,
   getWebhookSummary,
   getAdminOverview,
@@ -393,6 +394,18 @@ adminPortalRouter.get("/webhooks", async (req: AuthedRequest, res: Response) => 
 adminPortalRouter.get("/webhooks/summary", async (req: AuthedRequest, res: Response) => {
   try {
     const summary = await getWebhookSummary(parseWindowHours(req.query.windowHours, 24));
+    res.status(200).json(summary);
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+adminPortalRouter.get("/triage/summary", async (req: AuthedRequest, res: Response) => {
+  try {
+    const summary = await getAdminTriageSummary({
+      windowHours: parseWindowHours(req.query.windowHours, 24),
+      limit: parseLimit(req.query.limit, 100)
+    });
     res.status(200).json(summary);
   } catch (error) {
     handleError(res, error);
