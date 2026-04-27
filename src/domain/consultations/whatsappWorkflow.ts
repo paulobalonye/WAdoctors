@@ -1,5 +1,6 @@
 import { CaseStatus } from "@prisma/client";
 import { applyCaseStatusTransition } from "../cases/stateMachine.js";
+import { buildTriageAssessment, type TriageAIProvider } from "../triage/aiTriage.js";
 import {
   inferUrgencyFromText,
   routeOhioUrgentCareCase,
@@ -14,7 +15,12 @@ export type WorkflowTransition = {
 
 export type WhatsAppWorkflowPreview = {
   urgencyScore: number;
+  baselineUrgency: number;
   route: OhioUrgentCareRoute;
+  triageSource: "HEURISTIC" | "AI";
+  triageSummary: string;
+  triageConfidence: number;
+  triageRedFlags: string[];
   finalStatus: CaseStatus;
   transitions: WorkflowTransition[];
 };
@@ -30,21 +36,20 @@ function pushTransition(
   return next;
 }
 
-export function buildWhatsAppWorkflowPreview(params: {
-  messageText: string;
-  patientState: string;
+function buildWorkflowFromAssessment(params: {
+  urgencyScore: number;
+  baselineUrgency: number;
+  route: OhioUrgentCareRoute;
+  triageSource: "HEURISTIC" | "AI";
+  triageSummary: string;
+  triageConfidence: number;
+  triageRedFlags: string[];
 }): WhatsAppWorkflowPreview {
-  const urgencyScore = inferUrgencyFromText(params.messageText);
-  const route = routeOhioUrgentCareCase({
-    urgencyScore,
-    patientState: params.patientState
-  });
-
   const transitions: WorkflowTransition[] = [];
   let currentStatus: CaseStatus = CaseStatus.NEW;
   currentStatus = pushTransition(transitions, currentStatus, CaseStatus.TRIAGING, "Begin triage");
 
-  switch (route) {
+  switch (params.route) {
     case "ESCALATE_EMERGENCY":
       currentStatus = pushTransition(
         transitions,
@@ -83,9 +88,59 @@ export function buildWhatsAppWorkflowPreview(params: {
   }
 
   return {
-    urgencyScore,
-    route,
+    urgencyScore: params.urgencyScore,
+    baselineUrgency: params.baselineUrgency,
+    route: params.route,
+    triageSource: params.triageSource,
+    triageSummary: params.triageSummary,
+    triageConfidence: params.triageConfidence,
+    triageRedFlags: params.triageRedFlags,
     finalStatus: currentStatus,
     transitions
   };
+}
+
+export function buildWhatsAppWorkflowPreview(params: {
+  messageText: string;
+  patientState: string;
+}): WhatsAppWorkflowPreview {
+  const urgencyScore = inferUrgencyFromText(params.messageText);
+  const route = routeOhioUrgentCareCase({
+    urgencyScore,
+    patientState: params.patientState
+  });
+
+  return buildWorkflowFromAssessment({
+    urgencyScore,
+    baselineUrgency: urgencyScore,
+    route,
+    triageSource: "HEURISTIC",
+    triageSummary: "Keyword-based triage baseline",
+    triageConfidence: 0.55,
+    triageRedFlags: []
+  });
+}
+
+export async function buildWhatsAppWorkflowPreviewWithAI(params: {
+  messageText: string;
+  patientState: string;
+  aiEnabled: boolean;
+  provider?: TriageAIProvider;
+}): Promise<WhatsAppWorkflowPreview> {
+  const assessment = await buildTriageAssessment({
+    messageText: params.messageText,
+    patientState: params.patientState,
+    aiEnabled: params.aiEnabled,
+    provider: params.provider
+  });
+
+  return buildWorkflowFromAssessment({
+    urgencyScore: assessment.urgencyScore,
+    baselineUrgency: assessment.baselineUrgency,
+    route: assessment.route,
+    triageSource: assessment.source,
+    triageSummary: assessment.summary,
+    triageConfidence: assessment.confidence,
+    triageRedFlags: assessment.redFlags
+  });
 }

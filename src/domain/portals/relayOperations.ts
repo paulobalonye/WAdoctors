@@ -206,13 +206,19 @@ export async function listFailedRelayJobs(
     requestedLimit,
     totalFetched: jobs.length,
     totalMatched: filtered.length,
-    jobs: filtered.map((job) => ({
-      jobId: job.id?.trim() || "unknown",
-      name: job.name || "UNKNOWN_JOB",
-      caseId: job.caseId?.trim() || "",
-      failedReason: job.failedReason?.trim() || "Unknown failure",
-      attemptsMade: normalizeLimit(Number(job.attemptsMade ?? 0), 0, 1_000_000),
-      failedAt: toIsoTimestamp(job.finishedOn) ?? toIsoTimestamp(job.timestamp)
-    }))
+    jobs: filtered
+      .map((job) => ({
+        jobId: job.id?.trim() || "unknown",
+        name: job.name || "UNKNOWN_JOB",
+        caseId: job.caseId?.trim() || "",
+        failedReason: job.failedReason?.trim() || "Unknown failure",
+        attemptsMade: normalizeLimit(Number(job.attemptsMade ?? 0), 0, 1_000_000),
+        failedAt: toIsoTimestamp(job.finishedOn) ?? toIsoTimestamp(job.timestamp)
+      }))
+      .sort((a, b) => {
+        const aMs = a.failedAt ? Date.parse(a.failedAt) : 0;
+        const bMs = b.failedAt ? Date.parse(b.failedAt) : 0;
+        return bMs - aMs;
+      })
   };
 }

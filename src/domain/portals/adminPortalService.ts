@@ -135,6 +135,12 @@ export function getAdminIntegrationStatus() {
   return buildIntegrationStatus({
     relayDispatchMode: env.RELAY_DISPATCH_MODE,
     redisUrl: env.REDIS_URL,
+    aiTriage: {
+      enabled: env.AI_TRIAGE_ENABLED === "true",
+      provider: "openai",
+      apiKey: env.OPENAI_API_KEY,
+      model: env.OPENAI_TRIAGE_MODEL
+    },
     whatsapp: {
       webhookSecret: env.WHATSAPP_WEBHOOK_SECRET,
       verifyToken: env.WHATSAPP_WEBHOOK_VERIFY_TOKEN,

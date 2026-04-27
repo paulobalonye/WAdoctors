@@ -92,7 +92,12 @@ describe("admin relay routes", () => {
     expect(res.body).toMatchObject({
       summary: {
         readyCount: expect.any(Number),
-        total: 4
+        total: 5
+      },
+      aiTriage: {
+        ready: expect.any(Boolean),
+        enabled: expect.any(Boolean),
+        provider: "openai"
       },
       whatsapp: {
         ready: expect.any(Boolean),

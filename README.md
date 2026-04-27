@@ -128,8 +128,16 @@ pnpm dev:queue
 - `POST /api/v1/admin/relay/dev/inject-failure` (non-production only)
 
 Relay retry request bodies may include optional `caseId` for targeted retries.
+`GET /api/v1/admin/relay/failed` accepts `limit` plus optional `name` (`PATIENT_TO_WEBEX` or `DOCTOR_TO_WHATSAPP`) and `caseId` filters.
 `/api/v1/admin/relay/dev/inject-failure` is for non-production queue-mode drills and accepts `direction` + optional `caseId`.
 Queue drill steps are documented in `docs/RELAY_QUEUE_DRILL.md`.
+
+AI triage can be enabled with:
+- `AI_TRIAGE_ENABLED=true`
+- `OPENAI_API_KEY=<key>`
+- Optional model and timeout overrides: `OPENAI_TRIAGE_MODEL`, `OPENAI_TRIAGE_TIMEOUT_MS`
+
+When enabled, AI urgency is blended with a safety floor from the existing keyword heuristic (never lower than baseline), and fallback stays active if AI is unavailable.
 
 ## Portal auth
 
@@ -163,6 +171,7 @@ Safety guard:
 13. Docker-based local Postgres/Redis and Prisma seed pipeline for bootstrap users.
 14. Doctor assignment now respects schedule availability and max concurrent case limits.
 15. Baseline Prisma migration checked in at `prisma/migrations/20260426180000_init`.
+16. AI-assisted triage scoring path added (OpenAI-backed, feature-flagged, heuristic fallback).
 
 ## Next implementation steps
 

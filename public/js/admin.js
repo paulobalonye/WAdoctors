@@ -12,6 +12,7 @@ let selectedCaseId = "";
 let selectedCaseStatus = "";
 let doctorsCache = [];
 let casesCache = [];
+const relayJobNames = new Set(["PATIENT_TO_WEBEX", "DOCTOR_TO_WHATSAPP"]);
 
 const adminEmailInput = byId("adminEmailInput");
 const adminPasswordInput = byId("adminPasswordInput");
@@ -64,8 +65,10 @@ const adminWebhookTableBody = byId("adminWebhookTableBody");
 const adminRelayFailedLimit = byId("adminRelayFailedLimit");
 const adminRelayClearGraceSeconds = byId("adminRelayClearGraceSeconds");
 const adminRelayCaseId = byId("adminRelayCaseId");
+const adminRelayFailedName = byId("adminRelayFailedName");
 const adminRelayInjectDirection = byId("adminRelayInjectDirection");
 const refreshRelayHealthBtn = byId("refreshRelayHealthBtn");
+const refreshRelayFailedJobsBtn = byId("refreshRelayFailedJobsBtn");
 const retryRecentRelayFailedBtn = byId("retryRecentRelayFailedBtn");
 const retryWebexRelayFailedBtn = byId("retryWebexRelayFailedBtn");
 const retryWhatsAppRelayFailedBtn = byId("retryWhatsAppRelayFailedBtn");
@@ -133,6 +136,11 @@ function renderIntegrationStatus(data) {
       label: "Webex Bridge",
       value: String(Boolean(data.webex?.ready)),
       meta: "Webhook + bot messaging settings"
+    },
+    {
+      label: "AI Triage",
+      value: String(Boolean(data.aiTriage?.ready)),
+      meta: data.aiTriage?.enabled ? "OpenAI-assisted urgency scoring" : "Disabled"
     }
   ];
 
@@ -149,6 +157,7 @@ function renderIntegrationStatus(data) {
     .join("");
 
   const rows = [
+    ["AI Triage", data.aiTriage],
     ["WhatsApp", data.whatsapp],
     ["Webex", data.webex],
     ["Stripe", data.stripe],
@@ -468,11 +477,35 @@ function renderWebhookSummary(summary) {
     .join("");
 }
 
+function getRelayFailedLimit(fallback = 20, max = 50) {
+  const failedLimit = Number.parseInt(adminRelayFailedLimit.value, 10);
+  if (!Number.isFinite(failedLimit) || failedLimit < 1) {
+    return fallback;
+  }
+  return Math.min(failedLimit, max);
+}
+
+function getRelayClearGraceSeconds(fallback = 300) {
+  const graceSeconds = Number.parseInt(adminRelayClearGraceSeconds.value, 10);
+  if (!Number.isFinite(graceSeconds) || graceSeconds < 0) {
+    return fallback;
+  }
+  return Math.min(graceSeconds, 604800);
+}
+
+function getRelayCaseId() {
+  return adminRelayCaseId.value.trim();
+}
+
+function getRelayFailedNameFilter() {
+  const name = adminRelayFailedName.value.trim().toUpperCase();
+  return relayJobNames.has(name) ? name : undefined;
+}
+
 function renderRelayHealth(health) {
   if (!health || !health.counts) {
     adminRelayHealthGrid.innerHTML = `<div class="muted">Relay health unavailable.</div>`;
     adminRelayHealthNote.textContent = "Unable to load relay health.";
-    adminRelayFailedJobsBody.innerHTML = `<tr><td colspan="6" class="muted">No failed relay jobs.</td></tr>`;
     return;
   }
 
@@ -522,20 +555,38 @@ function renderRelayHealth(health) {
     .join("");
 
   adminRelayHealthNote.textContent = health.reason || "Relay queue reachable.";
+}
 
-  const failedJobs = Array.isArray(health.failedRecent) ? health.failedRecent : [];
-  if (!failedJobs.length) {
-    adminRelayFailedJobsBody.innerHTML = `<tr><td colspan="6" class="muted">No failed relay jobs.</td></tr>`;
+function renderRelayFailedJobs(data) {
+  if (!data || !Array.isArray(data.jobs)) {
+    adminRelayFailedJobsBody.innerHTML =
+      `<tr><td colspan="7" class="muted">Failed relay jobs unavailable.</td></tr>`;
     return;
   }
 
-  adminRelayFailedJobsBody.innerHTML = failedJobs
+  if (!data.ok) {
+    adminRelayFailedJobsBody.innerHTML = `
+      <tr>
+        <td colspan="7" class="muted">${escapeHtml(data.reason || "Relay queue unavailable.")}</td>
+      </tr>
+    `;
+    return;
+  }
+
+  if (!data.jobs.length) {
+    adminRelayFailedJobsBody.innerHTML =
+      `<tr><td colspan="7" class="muted">No failed relay jobs for current filters.</td></tr>`;
+    return;
+  }
+
+  adminRelayFailedJobsBody.innerHTML = data.jobs
     .map((job) => {
       const retryDisabled = !job.jobId || job.jobId === "unknown";
       return `
         <tr>
           <td>${escapeHtml(job.jobId || "unknown")}</td>
           <td>${escapeHtml(job.name || "-")}</td>
+          <td>${escapeHtml(job.caseId || "-")}</td>
           <td>${escapeHtml(String(job.attemptsMade ?? 0))}</td>
           <td>${escapeHtml(formatDateTime(job.failedAt))}</td>
           <td>${escapeHtml(job.failedReason || "-")}</td>
@@ -556,7 +607,7 @@ function renderRelayHealth(health) {
 
       try {
         const result = await retryRelayFailedJob(jobId);
-        await loadRelayHealth();
+        await refreshRelayDashboard();
         setStatus(
           adminStatusBar,
           result.ok
@@ -659,15 +710,39 @@ async function loadWebhookSummary() {
 }
 
 async function loadRelayHealth() {
-  const failedLimit = Number.parseInt(adminRelayFailedLimit.value, 10);
-  const normalizedFailedLimit =
-    Number.isFinite(failedLimit) && failedLimit >= 1 && failedLimit <= 50 ? failedLimit : 20;
+  const normalizedFailedLimit = getRelayFailedLimit(20, 50);
 
   const data = await apiRequest(
     `/api/v1/admin/relay/health?failedLimit=${encodeURIComponent(String(normalizedFailedLimit))}`,
     { headers: authHeaders() }
   );
   renderRelayHealth(data);
+}
+
+async function loadRelayFailedJobs() {
+  const query = new URLSearchParams({
+    limit: String(getRelayFailedLimit(20, 50))
+  });
+
+  const caseId = getRelayCaseId();
+  if (caseId) {
+    query.set("caseId", caseId);
+  }
+
+  const name = getRelayFailedNameFilter();
+  if (name) {
+    query.set("name", name);
+  }
+
+  const data = await apiRequest(`/api/v1/admin/relay/failed?${query.toString()}`, {
+    headers: authHeaders()
+  });
+  renderRelayFailedJobs(data);
+}
+
+async function refreshRelayDashboard() {
+  await loadRelayHealth();
+  await loadRelayFailedJobs();
 }
 
 async function retryRelayFailedJob(jobId) {
@@ -679,10 +754,8 @@ async function retryRelayFailedJob(jobId) {
 }
 
 async function retryRecentRelayFailedJobs() {
-  const failedLimit = Number.parseInt(adminRelayFailedLimit.value, 10);
-  const normalizedFailedLimit =
-    Number.isFinite(failedLimit) && failedLimit >= 1 && failedLimit <= 50 ? failedLimit : 20;
-  const caseId = adminRelayCaseId.value.trim();
+  const normalizedFailedLimit = getRelayFailedLimit(20, 50);
+  const caseId = getRelayCaseId();
 
   return apiRequest("/api/v1/admin/relay/failed/retry", {
     method: "POST",
@@ -695,10 +768,8 @@ async function retryRecentRelayFailedJobs() {
 }
 
 async function retryRecentWebexRelayFailedJobs() {
-  const failedLimit = Number.parseInt(adminRelayFailedLimit.value, 10);
-  const normalizedFailedLimit =
-    Number.isFinite(failedLimit) && failedLimit >= 1 && failedLimit <= 50 ? failedLimit : 20;
-  const caseId = adminRelayCaseId.value.trim();
+  const normalizedFailedLimit = getRelayFailedLimit(20, 50);
+  const caseId = getRelayCaseId();
 
   return apiRequest("/api/v1/admin/relay/failed/retry-webex", {
     method: "POST",
@@ -711,10 +782,8 @@ async function retryRecentWebexRelayFailedJobs() {
 }
 
 async function retryRecentWhatsAppRelayFailedJobs() {
-  const failedLimit = Number.parseInt(adminRelayFailedLimit.value, 10);
-  const normalizedFailedLimit =
-    Number.isFinite(failedLimit) && failedLimit >= 1 && failedLimit <= 50 ? failedLimit : 20;
-  const caseId = adminRelayCaseId.value.trim();
+  const normalizedFailedLimit = getRelayFailedLimit(20, 50);
+  const caseId = getRelayCaseId();
 
   return apiRequest("/api/v1/admin/relay/failed/retry-whatsapp", {
     method: "POST",
@@ -727,13 +796,8 @@ async function retryRecentWhatsAppRelayFailedJobs() {
 }
 
 async function clearRelayFailedJobs() {
-  const failedLimit = Number.parseInt(adminRelayFailedLimit.value, 10);
-  const normalizedFailedLimit =
-    Number.isFinite(failedLimit) && failedLimit >= 1 && failedLimit <= 200 ? failedLimit : 100;
-
-  const graceSeconds = Number.parseInt(adminRelayClearGraceSeconds.value, 10);
-  const normalizedGraceSeconds =
-    Number.isFinite(graceSeconds) && graceSeconds >= 0 && graceSeconds <= 604800 ? graceSeconds : 300;
+  const normalizedFailedLimit = getRelayFailedLimit(100, 200);
+  const normalizedGraceSeconds = getRelayClearGraceSeconds(300);
 
   return apiRequest("/api/v1/admin/relay/failed/clear", {
     method: "POST",
@@ -747,7 +811,7 @@ async function clearRelayFailedJobs() {
 
 async function injectRelayFailure() {
   const direction = adminRelayInjectDirection.value;
-  const caseId = adminRelayCaseId.value.trim();
+  const caseId = getRelayCaseId();
 
   return apiRequest("/api/v1/admin/relay/dev/inject-failure", {
     method: "POST",
@@ -842,7 +906,7 @@ async function refreshAll() {
   await loadCaseMessages();
   await loadWebhookSummary();
   await loadWebhookEvents();
-  await loadRelayHealth();
+  await refreshRelayDashboard();
   setStatus(adminStatusBar, adminToken ? "Admin portal authenticated." : "Admin portal synced (dev mode).", "success");
 }
 
@@ -891,6 +955,7 @@ clearAdminSessionBtn.addEventListener("click", () => {
   adminRelayHealthNote.textContent = "";
   adminRelayFailedJobsBody.innerHTML = "";
   adminRelayCaseId.value = "";
+  adminRelayFailedName.value = "";
   adminRelayInjectDirection.value = "PATIENT_TO_WEBEX";
   setStatus(adminStatusBar, "Admin session cleared.");
 });
@@ -1005,17 +1070,26 @@ refreshWebhookSummaryBtn.addEventListener("click", async () => {
 
 refreshRelayHealthBtn.addEventListener("click", async () => {
   try {
-    await loadRelayHealth();
-    setStatus(adminStatusBar, "Relay health refreshed.", "success");
+    await refreshRelayDashboard();
+    setStatus(adminStatusBar, "Relay dashboard refreshed.", "success");
   } catch (error) {
-    setStatus(adminStatusBar, error.message || "Failed to refresh relay health", "error");
+    setStatus(adminStatusBar, error.message || "Failed to refresh relay dashboard", "error");
+  }
+});
+
+refreshRelayFailedJobsBtn.addEventListener("click", async () => {
+  try {
+    await loadRelayFailedJobs();
+    setStatus(adminStatusBar, "Failed relay jobs refreshed.", "success");
+  } catch (error) {
+    setStatus(adminStatusBar, error.message || "Failed to refresh failed relay jobs", "error");
   }
 });
 
 retryRecentRelayFailedBtn.addEventListener("click", async () => {
   try {
     const result = await retryRecentRelayFailedJobs();
-    await loadRelayHealth();
+    await refreshRelayDashboard();
     setStatus(
       adminStatusBar,
       result.ok
@@ -1031,7 +1105,7 @@ retryRecentRelayFailedBtn.addEventListener("click", async () => {
 retryWebexRelayFailedBtn.addEventListener("click", async () => {
   try {
     const result = await retryRecentWebexRelayFailedJobs();
-    await loadRelayHealth();
+    await refreshRelayDashboard();
     setStatus(
       adminStatusBar,
       result.ok
@@ -1047,7 +1121,7 @@ retryWebexRelayFailedBtn.addEventListener("click", async () => {
 retryWhatsAppRelayFailedBtn.addEventListener("click", async () => {
   try {
     const result = await retryRecentWhatsAppRelayFailedJobs();
-    await loadRelayHealth();
+    await refreshRelayDashboard();
     setStatus(
       adminStatusBar,
       result.ok
@@ -1063,7 +1137,7 @@ retryWhatsAppRelayFailedBtn.addEventListener("click", async () => {
 injectRelayFailureBtn.addEventListener("click", async () => {
   try {
     const result = await injectRelayFailure();
-    await loadRelayHealth();
+    await refreshRelayDashboard();
     setStatus(
       adminStatusBar,
       result.ok
@@ -1079,7 +1153,7 @@ injectRelayFailureBtn.addEventListener("click", async () => {
 clearRelayFailedBtn.addEventListener("click", async () => {
   try {
     const result = await clearRelayFailedJobs();
-    await loadRelayHealth();
+    await refreshRelayDashboard();
     setStatus(
       adminStatusBar,
       result.ok
@@ -1097,6 +1171,14 @@ adminCaseStatusFilter.addEventListener("change", async () => {
     await loadCases();
   } catch (error) {
     setStatus(adminStatusBar, error.message || "Failed to apply case filter", "error");
+  }
+});
+
+adminRelayFailedName.addEventListener("change", async () => {
+  try {
+    await loadRelayFailedJobs();
+  } catch (error) {
+    setStatus(adminStatusBar, error.message || "Failed to apply relay failed filter", "error");
   }
 });
 

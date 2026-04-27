@@ -283,6 +283,14 @@
               <input id="adminRelayCaseId" placeholder="case UUID" />
             </div>
             <div class="field">
+              <label for="adminRelayFailedName">Failed Type Filter</label>
+              <select id="adminRelayFailedName">
+                <option value="">All Relay Types</option>
+                <option value="PATIENT_TO_WEBEX">PATIENT_TO_WEBEX</option>
+                <option value="DOCTOR_TO_WHATSAPP">DOCTOR_TO_WHATSAPP</option>
+              </select>
+            </div>
+            <div class="field">
               <label for="adminRelayInjectDirection">Inject Direction</label>
               <select id="adminRelayInjectDirection">
                 <option value="PATIENT_TO_WEBEX">PATIENT_TO_WEBEX</option>
@@ -291,6 +299,7 @@
             </div>
             <div class="btnrow" style="align-items: end">
               <button id="refreshRelayHealthBtn" class="secondary">Refresh Relay Health</button>
+              <button id="refreshRelayFailedJobsBtn" class="secondary">Refresh Failed Jobs</button>
               <button id="retryRecentRelayFailedBtn" class="secondary">Retry Recent Failed</button>
               <button id="retryWebexRelayFailedBtn" class="secondary">Retry Webex Failed</button>
               <button id="retryWhatsAppRelayFailedBtn" class="secondary">Retry WhatsApp Failed</button>
@@ -306,6 +315,7 @@
                 <tr>
                   <th>Job ID</th>
                   <th>Type</th>
+                  <th>Case ID</th>
                   <th>Attempts</th>
                   <th>Failed At</th>
                   <th>Reason</th>

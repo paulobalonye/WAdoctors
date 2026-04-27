@@ -14,6 +14,12 @@ export function formatIntegrationReadinessWarnings(status: IntegrationStatusResu
   const warnings = [`Integration readiness: ${status.summary.readyCount}/${status.summary.total} ready.`];
 
   const entries: Array<{ name: string; ready: boolean; missing: string[]; notes?: string[] }> = [
+    {
+      name: "AI Triage",
+      ready: status.aiTriage.ready,
+      missing: status.aiTriage.missing,
+      notes: status.aiTriage.notes
+    },
     { name: "WhatsApp", ready: status.whatsapp.ready, missing: status.whatsapp.missing, notes: status.whatsapp.notes },
     { name: "Webex", ready: status.webex.ready, missing: status.webex.missing, notes: status.webex.notes },
     { name: "Stripe", ready: status.stripe.ready, missing: status.stripe.missing, notes: status.stripe.notes },

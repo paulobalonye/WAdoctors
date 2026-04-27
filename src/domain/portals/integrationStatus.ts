@@ -25,6 +25,11 @@ export type IntegrationStatusResult = {
     readyCount: number;
     total: number;
   };
+  aiTriage: IntegrationStatusEntry & {
+    enabled: boolean;
+    provider: "openai";
+    model: string;
+  };
   whatsapp: IntegrationStatusEntry;
   webex: IntegrationStatusEntry;
   stripe: IntegrationStatusEntry;
@@ -36,6 +41,12 @@ export type IntegrationStatusResult = {
 export function buildIntegrationStatus(params: {
   relayDispatchMode: "inline" | "queue";
   redisUrl: string | undefined;
+  aiTriage: {
+    enabled: boolean;
+    provider: "openai";
+    apiKey: string | undefined;
+    model: string;
+  };
   whatsapp: {
     webhookSecret: string | undefined;
     verifyToken: string | undefined;
@@ -89,7 +100,24 @@ export function buildIntegrationStatus(params: {
     dispatchMode: params.relayDispatchMode
   };
 
-  const entries = [whatsapp, webex, stripe, relay];
+  const aiRequired = params.aiTriage.enabled
+    ? [{ key: "OPENAI_API_KEY", present: present(params.aiTriage.apiKey) }]
+    : [];
+  const aiTriageEntry = buildEntry({
+    required: aiRequired,
+    notes: params.aiTriage.enabled
+      ? [`provider=${params.aiTriage.provider}`, `model=${params.aiTriage.model}`]
+      : ["AI triage disabled"]
+  });
+
+  const aiTriage: IntegrationStatusResult["aiTriage"] = {
+    ...aiTriageEntry,
+    enabled: params.aiTriage.enabled,
+    provider: params.aiTriage.provider,
+    model: params.aiTriage.model
+  };
+
+  const entries = [whatsapp, webex, stripe, relay, aiTriage];
   const readyCount = entries.filter((entry) => entry.ready).length;
 
   return {
@@ -97,6 +125,7 @@ export function buildIntegrationStatus(params: {
       readyCount,
       total: entries.length
     },
+    aiTriage,
     whatsapp,
     webex,
     stripe,

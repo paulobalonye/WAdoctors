@@ -219,4 +219,28 @@ describe("listFailedRelayJobs", () => {
       }
     ]);
   });
+
+  it("orders matched failed jobs by most recent failure first", async () => {
+    const older = {
+      ...buildFailedJob({ id: "job-old", caseId: "case-1" }),
+      finishedOn: 1700000000000
+    };
+    const newer = {
+      ...buildFailedJob({ id: "job-new", caseId: "case-1" }),
+      finishedOn: 1710000000000
+    };
+
+    const adapter: RelayQueueAdapter = {
+      getJobById: async () => null,
+      getFailedJobs: async () => [older, newer],
+      cleanFailed: async () => []
+    };
+
+    const result = await listFailedRelayJobs(adapter, {
+      limit: 10,
+      name: "PATIENT_TO_WEBEX"
+    });
+
+    expect(result.jobs.map((item) => item.jobId)).toEqual(["job-new", "job-old"]);
+  });
 });
