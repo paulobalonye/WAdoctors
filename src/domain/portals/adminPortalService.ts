@@ -393,6 +393,16 @@ export async function listAdminDoctors() {
   }));
 }
 
+export async function getAdminDoctor(doctorId: string) {
+  const doctor = await prisma.doctor.findUnique({
+    where: { id: doctorId }
+  });
+  if (!doctor) {
+    throw new Error("Doctor not found");
+  }
+  return doctor;
+}
+
 export async function createAdminDoctor(params: {
   email: string;
   fullName: string;
@@ -430,6 +440,97 @@ export async function createAdminDoctor(params: {
   });
 }
 
+export async function updateAdminDoctor(params: {
+  doctorId: string;
+  email?: string;
+  fullName?: string;
+  npiNumber?: string;
+  licenseState?: string | null;
+  specialty?: string | null;
+  webexPersonId?: string | null;
+  isActive?: boolean;
+  kycStatus?: DoctorKycStatus;
+  availability?: unknown;
+  maxConcurrentCases?: number;
+}) {
+  const existing = await prisma.doctor.findUnique({
+    where: { id: params.doctorId }
+  });
+  if (!existing) {
+    throw new Error("Doctor not found");
+  }
+
+  const data: Prisma.DoctorUpdateInput = {};
+  if (typeof params.email === "string") {
+    data.email = params.email.trim().toLowerCase();
+  }
+  if (typeof params.fullName === "string") {
+    data.fullName = params.fullName.trim();
+  }
+  if (typeof params.npiNumber === "string") {
+    data.npiNumber = params.npiNumber.trim();
+  }
+  if (params.licenseState !== undefined) {
+    data.licenseState = params.licenseState ? params.licenseState.trim().toUpperCase() : null;
+  }
+  if (params.specialty !== undefined) {
+    data.specialty = params.specialty ? params.specialty.trim() : null;
+  }
+  if (params.webexPersonId !== undefined) {
+    data.webexPersonId = params.webexPersonId ? params.webexPersonId.trim() : null;
+  }
+  if (typeof params.isActive === "boolean") {
+    data.isActive = params.isActive;
+  }
+  if (params.kycStatus) {
+    data.kycStatus = params.kycStatus;
+  }
+  if (params.maxConcurrentCases !== undefined) {
+    data.maxConcurrentCases = params.maxConcurrentCases;
+  }
+  if (params.availability !== undefined) {
+    if (!validateDoctorAvailability(params.availability)) {
+      throw new Error("Invalid doctor availability payload");
+    }
+    data.availability = params.availability as Prisma.InputJsonValue;
+  }
+
+  return prisma.doctor.update({
+    where: { id: params.doctorId },
+    data
+  });
+}
+
+export async function deleteAdminDoctor(params: { doctorId: string }) {
+  const doctor = await prisma.doctor.findUnique({
+    where: { id: params.doctorId }
+  });
+  if (!doctor) {
+    throw new Error("Doctor not found");
+  }
+
+  const activeCases = await prisma.triageCase.count({
+    where: {
+      assignedDoctorId: params.doctorId,
+      status: {
+        in: ACTIVE_CASE_STATUSES
+      }
+    }
+  });
+  if (activeCases > 0) {
+    throw new Error("Doctor has active assigned cases and cannot be deleted");
+  }
+
+  await prisma.doctor.delete({
+    where: { id: params.doctorId }
+  });
+
+  return {
+    deleted: true,
+    doctorId: params.doctorId
+  };
+}
+
 export async function createAdminUser(params: {
   email: string;
   fullName: string;
@@ -444,6 +545,86 @@ export async function createAdminUser(params: {
       passwordHash
     }
   });
+}
+
+export async function listAdminUsers() {
+  return prisma.adminUser.findMany({
+    orderBy: {
+      createdAt: "desc"
+    }
+  });
+}
+
+export async function getAdminUser(adminUserId: string) {
+  const user = await prisma.adminUser.findUnique({
+    where: { id: adminUserId }
+  });
+  if (!user) {
+    throw new Error("Admin user not found");
+  }
+  return user;
+}
+
+export async function updateAdminUser(params: {
+  adminUserId: string;
+  email?: string;
+  fullName?: string;
+  isActive?: boolean;
+}) {
+  const existing = await prisma.adminUser.findUnique({
+    where: { id: params.adminUserId }
+  });
+  if (!existing) {
+    throw new Error("Admin user not found");
+  }
+
+  const data: Prisma.AdminUserUpdateInput = {};
+  if (typeof params.email === "string") {
+    data.email = params.email.trim().toLowerCase();
+  }
+  if (typeof params.fullName === "string") {
+    data.fullName = params.fullName.trim();
+  }
+  if (typeof params.isActive === "boolean") {
+    data.isActive = params.isActive;
+  }
+
+  return prisma.adminUser.update({
+    where: { id: params.adminUserId },
+    data
+  });
+}
+
+export async function resetAdminUserPassword(params: { adminUserId: string; password: string }) {
+  const passwordHash = await hashPortalPassword(params.password);
+  return prisma.adminUser.update({
+    where: { id: params.adminUserId },
+    data: {
+      passwordHash
+    }
+  });
+}
+
+export async function deleteAdminUser(params: { adminUserId: string; actorId: string }) {
+  if (params.adminUserId === params.actorId) {
+    throw new Error("You cannot delete your own admin account");
+  }
+
+  const existing = await prisma.adminUser.findUnique({
+    where: { id: params.adminUserId }
+  });
+  if (!existing) {
+    throw new Error("Admin user not found");
+  }
+
+  await prisma.adminUser.delete({
+    where: { id: params.adminUserId }
+  });
+
+  return {
+    deleted: true,
+    adminUserId: params.adminUserId
+  };
 }
 
 export async function resetDoctorPortalPassword(params: { doctorId: string; password: string }) {
@@ -498,6 +679,277 @@ export async function setDoctorKycStatus(params: {
       kycStatus: params.kycStatus
     }
   });
+}
+
+export async function listAdminPatients(limit = 200) {
+  const safeLimit = Math.min(Math.max(limit, 1), 500);
+  return prisma.patient.findMany({
+    orderBy: {
+      createdAt: "desc"
+    },
+    take: safeLimit
+  });
+}
+
+export async function getAdminPatient(patientId: string) {
+  const patient = await prisma.patient.findUnique({
+    where: { id: patientId }
+  });
+  if (!patient) {
+    throw new Error("Patient not found");
+  }
+  return patient;
+}
+
+export async function createAdminPatient(params: {
+  whatsappPhone: string;
+  fullName: string;
+  dateOfBirth?: Date | null;
+  email?: string | null;
+  address?: string | null;
+  emergencyContactName?: string | null;
+  emergencyContactPhone?: string | null;
+  insuranceProvider?: string | null;
+  idDocumentUrl?: string | null;
+}) {
+  return prisma.patient.create({
+    data: {
+      whatsappPhone: params.whatsappPhone.trim(),
+      fullName: params.fullName.trim(),
+      dateOfBirth: params.dateOfBirth ?? null,
+      email: params.email ? params.email.trim().toLowerCase() : null,
+      address: params.address ? params.address.trim() : null,
+      emergencyContactName: params.emergencyContactName ? params.emergencyContactName.trim() : null,
+      emergencyContactPhone: params.emergencyContactPhone ? params.emergencyContactPhone.trim() : null,
+      insuranceProvider: params.insuranceProvider ? params.insuranceProvider.trim() : null,
+      idDocumentUrl: params.idDocumentUrl ? params.idDocumentUrl.trim() : null
+    }
+  });
+}
+
+export async function updateAdminPatient(params: {
+  patientId: string;
+  whatsappPhone?: string;
+  fullName?: string;
+  dateOfBirth?: Date | null;
+  email?: string | null;
+  address?: string | null;
+  emergencyContactName?: string | null;
+  emergencyContactPhone?: string | null;
+  insuranceProvider?: string | null;
+  idDocumentUrl?: string | null;
+}) {
+  const existing = await prisma.patient.findUnique({
+    where: { id: params.patientId }
+  });
+  if (!existing) {
+    throw new Error("Patient not found");
+  }
+
+  const data: Prisma.PatientUpdateInput = {};
+  if (typeof params.whatsappPhone === "string") {
+    data.whatsappPhone = params.whatsappPhone.trim();
+  }
+  if (typeof params.fullName === "string") {
+    data.fullName = params.fullName.trim();
+  }
+  if (params.dateOfBirth !== undefined) {
+    data.dateOfBirth = params.dateOfBirth;
+  }
+  if (params.email !== undefined) {
+    data.email = params.email ? params.email.trim().toLowerCase() : null;
+  }
+  if (params.address !== undefined) {
+    data.address = params.address ? params.address.trim() : null;
+  }
+  if (params.emergencyContactName !== undefined) {
+    data.emergencyContactName = params.emergencyContactName ? params.emergencyContactName.trim() : null;
+  }
+  if (params.emergencyContactPhone !== undefined) {
+    data.emergencyContactPhone = params.emergencyContactPhone ? params.emergencyContactPhone.trim() : null;
+  }
+  if (params.insuranceProvider !== undefined) {
+    data.insuranceProvider = params.insuranceProvider ? params.insuranceProvider.trim() : null;
+  }
+  if (params.idDocumentUrl !== undefined) {
+    data.idDocumentUrl = params.idDocumentUrl ? params.idDocumentUrl.trim() : null;
+  }
+
+  return prisma.patient.update({
+    where: { id: params.patientId },
+    data
+  });
+}
+
+export async function deleteAdminPatient(params: { patientId: string }) {
+  const existing = await prisma.patient.findUnique({
+    where: { id: params.patientId }
+  });
+  if (!existing) {
+    throw new Error("Patient not found");
+  }
+
+  const openCases = await prisma.triageCase.count({
+    where: {
+      patientId: params.patientId,
+      status: {
+        in: ACTIVE_CASE_STATUSES
+      }
+    }
+  });
+  if (openCases > 0) {
+    throw new Error("Patient has open cases and cannot be deleted");
+  }
+
+  await prisma.patient.delete({
+    where: { id: params.patientId }
+  });
+  return {
+    deleted: true,
+    patientId: params.patientId
+  };
+}
+
+export async function getAdminProfile360(params: {
+  entityType: "DOCTOR" | "PATIENT" | "ADMIN_USER";
+  entityId: string;
+}) {
+  if (params.entityType === "DOCTOR") {
+    const doctor = await prisma.doctor.findUnique({
+      where: { id: params.entityId }
+    });
+    if (!doctor) {
+      throw new Error("Doctor not found");
+    }
+
+    const [openCases, completedCases, recentCases] = await Promise.all([
+      prisma.triageCase.count({
+        where: {
+          assignedDoctorId: doctor.id,
+          status: {
+            in: ACTIVE_CASE_STATUSES
+          }
+        }
+      }),
+      prisma.triageCase.count({
+        where: {
+          assignedDoctorId: doctor.id,
+          status: "COMPLETED"
+        }
+      }),
+      prisma.triageCase.findMany({
+        where: {
+          assignedDoctorId: doctor.id
+        },
+        include: {
+          patient: {
+            select: {
+              id: true,
+              fullName: true,
+              whatsappPhone: true
+            }
+          }
+        },
+        orderBy: {
+          createdAt: "desc"
+        },
+        take: 20
+      })
+    ]);
+
+    return {
+      entityType: "DOCTOR",
+      profile: doctor,
+      metrics: {
+        openCases,
+        completedCases,
+        totalCases: openCases + completedCases
+      },
+      recentCases
+    };
+  }
+
+  if (params.entityType === "PATIENT") {
+    const patient = await prisma.patient.findUnique({
+      where: { id: params.entityId }
+    });
+    if (!patient) {
+      throw new Error("Patient not found");
+    }
+
+    const [openCases, completedCases, recentCases] = await Promise.all([
+      prisma.triageCase.count({
+        where: {
+          patientId: patient.id,
+          status: {
+            in: ACTIVE_CASE_STATUSES
+          }
+        }
+      }),
+      prisma.triageCase.count({
+        where: {
+          patientId: patient.id,
+          status: "COMPLETED"
+        }
+      }),
+      prisma.triageCase.findMany({
+        where: {
+          patientId: patient.id
+        },
+        include: {
+          assignedDoctor: {
+            select: {
+              id: true,
+              fullName: true,
+              email: true
+            }
+          }
+        },
+        orderBy: {
+          createdAt: "desc"
+        },
+        take: 20
+      })
+    ]);
+
+    return {
+      entityType: "PATIENT",
+      profile: patient,
+      metrics: {
+        openCases,
+        completedCases,
+        totalCases: openCases + completedCases
+      },
+      recentCases
+    };
+  }
+
+  const adminUser = await prisma.adminUser.findUnique({
+    where: { id: params.entityId }
+  });
+  if (!adminUser) {
+    throw new Error("Admin user not found");
+  }
+
+  const recentAudit = await prisma.auditLog.findMany({
+    where: {
+      actorId: adminUser.id,
+      actorType: "ADMIN"
+    },
+    orderBy: {
+      createdAt: "desc"
+    },
+    take: 50
+  });
+
+  return {
+    entityType: "ADMIN_USER",
+    profile: adminUser,
+    metrics: {
+      auditActions: recentAudit.length
+    },
+    recentAudit
+  };
 }
 
 export async function listRecentWebhookEvents(limit: number) {

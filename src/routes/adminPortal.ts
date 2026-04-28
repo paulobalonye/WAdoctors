@@ -5,11 +5,19 @@ import { type AuthedRequest, requireRole } from "../auth/roles.js";
 import { env } from "../config/env.js";
 import {
   assignAdminCaseDoctor,
+  createAdminPatient,
   createAdminDoctor,
   createAdminUser,
   clearAdminFailedRelayJobs,
+  deleteAdminDoctor,
+  deleteAdminPatient,
+  deleteAdminUser,
   evaluateAdminTriage,
+  getAdminDoctor,
   getAdminIntegrationStatus,
+  getAdminPatient,
+  getAdminProfile360,
+  getAdminUser,
   getAdminTriageSummary,
   getRelayQueueHealth,
   getWebhookSummary,
@@ -18,6 +26,8 @@ import {
   getAdminCaseMessages,
   listAdminCases,
   listAdminDoctors,
+  listAdminPatients,
+  listAdminUsers,
   listRecentWebhookEvents,
   listAdminFailedRelayJobs,
   injectAdminRelayFailure,
@@ -26,11 +36,15 @@ import {
   retryAdminRecentWhatsAppFailedRelayJobs,
   retryAdminRecentWebexFailedRelayJobs,
   replayAdminCaseRelay,
+  resetAdminUserPassword,
   resetDoctorPortalPassword,
   setDoctorSchedule,
   setAdminCaseStatus,
   setDoctorActive,
-  setDoctorKycStatus
+  setDoctorKycStatus,
+  updateAdminDoctor,
+  updateAdminPatient,
+  updateAdminUser
 } from "../domain/portals/adminPortalService.js";
 
 const caseStatusSchema = z.nativeEnum({
@@ -71,9 +85,40 @@ const createDoctorBodySchema = z.object({
   maxConcurrentCases: z.number().int().min(1).max(20).optional()
 });
 
+const updateDoctorBodySchema = z
+  .object({
+    email: z.string().email().optional(),
+    fullName: z.string().min(2).optional(),
+    npiNumber: z.string().min(5).optional(),
+    licenseState: z.string().length(2).nullable().optional(),
+    specialty: z.string().nullable().optional(),
+    webexPersonId: z.string().nullable().optional(),
+    isActive: z.boolean().optional(),
+    kycStatus: z.nativeEnum(DoctorKycStatus).optional(),
+    availability: z.unknown().optional(),
+    maxConcurrentCases: z.number().int().min(1).max(20).optional()
+  })
+  .refine((value) => Object.keys(value).length > 0, {
+    message: "At least one field is required"
+  });
+
 const createAdminUserBodySchema = z.object({
   email: z.string().email(),
   fullName: z.string().min(2),
+  password: z.string().min(8)
+});
+
+const updateAdminUserBodySchema = z
+  .object({
+    email: z.string().email().optional(),
+    fullName: z.string().min(2).optional(),
+    isActive: z.boolean().optional()
+  })
+  .refine((value) => Object.keys(value).length > 0, {
+    message: "At least one field is required"
+  });
+
+const resetAdminUserPasswordBodySchema = z.object({
   password: z.string().min(8)
 });
 
@@ -85,6 +130,36 @@ const doctorScheduleBodySchema = z.object({
   availability: z.unknown(),
   maxConcurrentCases: z.number().int().min(1).max(20).optional()
 });
+
+const createPatientBodySchema = z.object({
+  whatsappPhone: z.string().min(6),
+  fullName: z.string().min(2),
+  dateOfBirth: z.string().datetime().nullable().optional(),
+  email: z.string().email().nullable().optional(),
+  address: z.string().nullable().optional(),
+  emergencyContactName: z.string().nullable().optional(),
+  emergencyContactPhone: z.string().nullable().optional(),
+  insuranceProvider: z.string().nullable().optional(),
+  idDocumentUrl: z.string().url().nullable().optional()
+});
+
+const updatePatientBodySchema = z
+  .object({
+    whatsappPhone: z.string().min(6).optional(),
+    fullName: z.string().min(2).optional(),
+    dateOfBirth: z.string().datetime().nullable().optional(),
+    email: z.string().email().nullable().optional(),
+    address: z.string().nullable().optional(),
+    emergencyContactName: z.string().nullable().optional(),
+    emergencyContactPhone: z.string().nullable().optional(),
+    insuranceProvider: z.string().nullable().optional(),
+    idDocumentUrl: z.string().url().nullable().optional()
+  })
+  .refine((value) => Object.keys(value).length > 0, {
+    message: "At least one field is required"
+  });
+
+const profileEntityTypeSchema = z.enum(["DOCTOR", "PATIENT", "ADMIN_USER"]);
 
 const caseStatusBodySchema = z.object({
   status: z.nativeEnum({
@@ -163,6 +238,20 @@ function parseFailedLimit(value: unknown, fallback = 20): number {
   }
 
   return Math.min(parsed, 50);
+}
+
+function parseOptionalDate(value: string | null | undefined): Date | null | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (value === null) {
+    return null;
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    throw new Error("Invalid date value");
+  }
+  return date;
 }
 
 function handleError(res: Response, error: unknown): void {
@@ -316,6 +405,15 @@ adminPortalRouter.get("/doctors", async (_req: AuthedRequest, res: Response) => 
   }
 });
 
+adminPortalRouter.get("/doctors/:doctorId", async (req: AuthedRequest, res: Response) => {
+  try {
+    const doctor = await getAdminDoctor(req.params.doctorId);
+    res.status(200).json(doctor);
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
 adminPortalRouter.post("/doctors", async (req: AuthedRequest, res: Response) => {
   try {
     const body = createDoctorBodySchema.safeParse(req.body);
@@ -326,6 +424,35 @@ adminPortalRouter.post("/doctors", async (req: AuthedRequest, res: Response) => 
 
     const doctor = await createAdminDoctor(body.data);
     res.status(201).json(doctor);
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+adminPortalRouter.patch("/doctors/:doctorId", async (req: AuthedRequest, res: Response) => {
+  try {
+    const body = updateDoctorBodySchema.safeParse(req.body ?? {});
+    if (!body.success) {
+      res.status(400).json({ error: "Invalid body", details: body.error.flatten().fieldErrors });
+      return;
+    }
+
+    const updated = await updateAdminDoctor({
+      doctorId: req.params.doctorId,
+      ...body.data
+    });
+    res.status(200).json(updated);
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+adminPortalRouter.delete("/doctors/:doctorId", async (req: AuthedRequest, res: Response) => {
+  try {
+    const deleted = await deleteAdminDoctor({
+      doctorId: req.params.doctorId
+    });
+    res.status(200).json(deleted);
   } catch (error) {
     handleError(res, error);
   }
@@ -374,6 +501,24 @@ adminPortalRouter.patch("/doctors/:doctorId/schedule", async (req: AuthedRequest
   }
 });
 
+adminPortalRouter.get("/admin-users", async (_req: AuthedRequest, res: Response) => {
+  try {
+    const users = await listAdminUsers();
+    res.status(200).json(users);
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+adminPortalRouter.get("/admin-users/:adminUserId", async (req: AuthedRequest, res: Response) => {
+  try {
+    const user = await getAdminUser(req.params.adminUserId);
+    res.status(200).json(user);
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
 adminPortalRouter.post("/admin-users", async (req: AuthedRequest, res: Response) => {
   try {
     const body = createAdminUserBodySchema.safeParse(req.body);
@@ -389,6 +534,142 @@ adminPortalRouter.post("/admin-users", async (req: AuthedRequest, res: Response)
       fullName: adminUser.fullName,
       isActive: adminUser.isActive
     });
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+adminPortalRouter.patch("/admin-users/:adminUserId", async (req: AuthedRequest, res: Response) => {
+  try {
+    const body = updateAdminUserBodySchema.safeParse(req.body ?? {});
+    if (!body.success) {
+      res.status(400).json({ error: "Invalid body", details: body.error.flatten().fieldErrors });
+      return;
+    }
+
+    const updated = await updateAdminUser({
+      adminUserId: req.params.adminUserId,
+      ...body.data
+    });
+    res.status(200).json(updated);
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+adminPortalRouter.patch("/admin-users/:adminUserId/password", async (req: AuthedRequest, res: Response) => {
+  try {
+    const body = resetAdminUserPasswordBodySchema.safeParse(req.body ?? {});
+    if (!body.success) {
+      res.status(400).json({ error: "Invalid body", details: body.error.flatten().fieldErrors });
+      return;
+    }
+
+    const user = await resetAdminUserPassword({
+      adminUserId: req.params.adminUserId,
+      password: body.data.password
+    });
+    res.status(200).json({
+      id: user.id,
+      email: user.email,
+      passwordReset: true
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+adminPortalRouter.delete("/admin-users/:adminUserId", async (req: AuthedRequest, res: Response) => {
+  try {
+    const deleted = await deleteAdminUser({
+      adminUserId: req.params.adminUserId,
+      actorId: req.auth!.userId
+    });
+    res.status(200).json(deleted);
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+adminPortalRouter.get("/patients", async (req: AuthedRequest, res: Response) => {
+  try {
+    const patients = await listAdminPatients(parseLimit(req.query.limit, 200));
+    res.status(200).json(patients);
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+adminPortalRouter.get("/patients/:patientId", async (req: AuthedRequest, res: Response) => {
+  try {
+    const patient = await getAdminPatient(req.params.patientId);
+    res.status(200).json(patient);
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+adminPortalRouter.post("/patients", async (req: AuthedRequest, res: Response) => {
+  try {
+    const body = createPatientBodySchema.safeParse(req.body ?? {});
+    if (!body.success) {
+      res.status(400).json({ error: "Invalid body", details: body.error.flatten().fieldErrors });
+      return;
+    }
+
+    const patient = await createAdminPatient({
+      ...body.data,
+      dateOfBirth: parseOptionalDate(body.data.dateOfBirth) ?? null
+    });
+    res.status(201).json(patient);
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+adminPortalRouter.patch("/patients/:patientId", async (req: AuthedRequest, res: Response) => {
+  try {
+    const body = updatePatientBodySchema.safeParse(req.body ?? {});
+    if (!body.success) {
+      res.status(400).json({ error: "Invalid body", details: body.error.flatten().fieldErrors });
+      return;
+    }
+
+    const updated = await updateAdminPatient({
+      patientId: req.params.patientId,
+      ...body.data,
+      dateOfBirth: parseOptionalDate(body.data.dateOfBirth)
+    });
+    res.status(200).json(updated);
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+adminPortalRouter.delete("/patients/:patientId", async (req: AuthedRequest, res: Response) => {
+  try {
+    const deleted = await deleteAdminPatient({
+      patientId: req.params.patientId
+    });
+    res.status(200).json(deleted);
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+adminPortalRouter.get("/profile360/:entityType/:entityId", async (req: AuthedRequest, res: Response) => {
+  try {
+    const parsedEntityType = profileEntityTypeSchema.safeParse(req.params.entityType);
+    if (!parsedEntityType.success) {
+      res.status(400).json({ error: "Invalid profile entity type" });
+      return;
+    }
+
+    const result = await getAdminProfile360({
+      entityType: parsedEntityType.data,
+      entityId: req.params.entityId
+    });
+    res.status(200).json(result);
   } catch (error) {
     handleError(res, error);
   }

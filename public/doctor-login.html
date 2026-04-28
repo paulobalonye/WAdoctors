@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Doctor Login - WAdoctors</title>
+    <link rel="stylesheet" href="/portal/styles.css" />
+  </head>
+  <body
+    class="auth-page"
+    style="background-image: url('https://images.unsplash.com/photo-1537368910025-700350fe46c7?auto=format&fit=crop&w=1800&q=80')"
+  >
+    <div class="auth-overlay"></div>
+    <div class="auth-card">
+      <h1>Doctor Login</h1>
+      <div class="muted" style="margin-bottom: 12px">Consultation workspace for active WAdoctors cases.</div>
+
+      <div class="field">
+        <label for="doctorEmailInput">Doctor Email</label>
+        <input id="doctorEmailInput" placeholder="doctor@wadoctors.local" />
+      </div>
+      <div class="field">
+        <label for="doctorPasswordInput">Password</label>
+        <input id="doctorPasswordInput" type="password" placeholder="Password" />
+      </div>
+      <div class="auth-actions" style="margin-bottom: 10px">
+        <button id="doctorLoginBtn">Login</button>
+      </div>
+
+      <div class="muted" style="margin: 6px 0">Dev fallback</div>
+      <div class="field">
+        <label for="doctorIdInput">Doctor ID</label>
+        <input id="doctorIdInput" placeholder="Doctor UUID" />
+      </div>
+      <div class="auth-actions">
+        <button id="saveDoctorSessionBtn" class="secondary">Use Doctor ID</button>
+      </div>
+
+      <div id="doctorStatusBar" class="statusbar" style="margin-top: 12px">Sign in to continue.</div>
+    </div>
+
+    <script type="module" src="/portal/js/doctor-login.js"></script>
+  </body>
+</html>

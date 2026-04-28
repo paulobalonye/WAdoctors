@@ -331,4 +331,35 @@ describe("admin relay routes", () => {
       retried: 0
     });
   });
+
+  it("validates profile360 entity type", async () => {
+    (env as { NODE_ENV: "development" | "test" | "production" }).NODE_ENV = "test";
+    (env as { APP_ENV: "development" | "test" | "staging" | "production" }).APP_ENV = "test";
+    (env as { ALLOW_DEV_HEADER_AUTH: "true" | "false" }).ALLOW_DEV_HEADER_AUTH = "true";
+
+    const res = await request(app)
+      .get("/api/v1/admin/profile360/INVALID/entity-1")
+      .set(adminHeaders())
+      .expect(400);
+
+    expect(res.body).toMatchObject({
+      error: "Invalid profile entity type"
+    });
+  });
+
+  it("validates patient create body", async () => {
+    (env as { NODE_ENV: "development" | "test" | "production" }).NODE_ENV = "test";
+    (env as { APP_ENV: "development" | "test" | "staging" | "production" }).APP_ENV = "test";
+    (env as { ALLOW_DEV_HEADER_AUTH: "true" | "false" }).ALLOW_DEV_HEADER_AUTH = "true";
+
+    const res = await request(app)
+      .post("/api/v1/admin/patients")
+      .set(adminHeaders())
+      .send({ fullName: "", whatsappPhone: "1" })
+      .expect(400);
+
+    expect(res.body).toMatchObject({
+      error: "Invalid body"
+    });
+  });
 });

@@ -54,6 +54,11 @@ a {
   background: #fff;
 }
 
+.nav button {
+  padding: 8px 10px;
+  border-radius: 6px;
+}
+
 .nav a.active {
   background: #0b5cab;
   border-color: #0b5cab;
@@ -334,4 +339,41 @@ tbody tr:hover {
   .grid-3 {
     grid-template-columns: 1fr;
   }
+}
+
+.auth-page {
+  min-height: 100vh;
+  margin: 0;
+  display: grid;
+  place-items: center;
+  background-size: cover;
+  background-position: center;
+}
+
+.auth-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 20, 35, 0.45);
+}
+
+.auth-card {
+  position: relative;
+  z-index: 1;
+  width: min(460px, calc(100vw - 32px));
+  background: #ffffff;
+  border: 1px solid #d9e2ec;
+  border-radius: 8px;
+  padding: 18px;
+  box-shadow: 0 16px 44px rgba(8, 23, 41, 0.24);
+}
+
+.auth-card h1 {
+  margin: 0 0 6px;
+  font-size: 24px;
+}
+
+.auth-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }

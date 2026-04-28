@@ -17,6 +17,7 @@ const doctorLoginBtn = byId("doctorLoginBtn");
 const doctorIdInput = byId("doctorIdInput");
 const saveDoctorSessionBtn = byId("saveDoctorSessionBtn");
 const clearDoctorSessionBtn = byId("clearDoctorSessionBtn");
+const doctorSignOutBtn = byId("doctorSignOutBtn");
 const doctorStatusBar = byId("doctorStatusBar");
 const doctorProfile = byId("doctorProfile");
 const doctorCaseStatusFilter = byId("doctorCaseStatusFilter");
@@ -34,6 +35,10 @@ const closeDoctorCaseBtn = byId("closeDoctorCaseBtn");
 
 doctorIdInput.value = doctorId;
 doctorEmailInput.value = localStorage.getItem(storageKeys.doctorEmail) || "";
+
+if (!doctorToken && !doctorId) {
+  window.location.href = "/portal/doctor-login.html";
+}
 
 function parseCaseTriageTranscript(rawValue) {
   if (typeof rawValue !== "string" || !rawValue.trim()) {
@@ -382,6 +387,17 @@ clearDoctorSessionBtn.addEventListener("click", () => {
   doctorCasesTableBody.innerHTML = "";
   doctorMessagesList.innerHTML = "";
   setStatus(doctorStatusBar, "Doctor session cleared.");
+  window.location.href = "/portal/doctor-login.html";
+});
+
+doctorSignOutBtn.addEventListener("click", () => {
+  doctorId = "";
+  doctorToken = "";
+  selectedCaseId = "";
+  casesCache = [];
+  localStorage.removeItem(storageKeys.doctorId);
+  localStorage.removeItem(storageKeys.doctorToken);
+  window.location.href = "/portal/doctor-login.html";
 });
 
 refreshDoctorCasesBtn.addEventListener("click", async () => {

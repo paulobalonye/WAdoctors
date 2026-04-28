@@ -12,6 +12,8 @@ let selectedCaseId = "";
 let selectedCaseStatus = "";
 let doctorsCache = [];
 let casesCache = [];
+let adminUsersCache = [];
+let patientsCache = [];
 const relayJobNames = new Set(["PATIENT_TO_WEBEX", "DOCTOR_TO_WHATSAPP"]);
 
 const adminEmailInput = byId("adminEmailInput");
@@ -20,6 +22,7 @@ const adminLoginBtn = byId("adminLoginBtn");
 const adminIdInput = byId("adminIdInput");
 const saveAdminSessionBtn = byId("saveAdminSessionBtn");
 const clearAdminSessionBtn = byId("clearAdminSessionBtn");
+const adminSignOutBtn = byId("adminSignOutBtn");
 const adminStatusBar = byId("adminStatusBar");
 const adminOverviewGrid = byId("adminOverviewGrid");
 const refreshIntegrationStatusBtn = byId("refreshIntegrationStatusBtn");
@@ -42,6 +45,27 @@ const createAdminUserEmail = byId("createAdminUserEmail");
 const createAdminUserName = byId("createAdminUserName");
 const createAdminUserPassword = byId("createAdminUserPassword");
 const createAdminUserBtn = byId("createAdminUserBtn");
+const refreshAdminUsersBtn = byId("refreshAdminUsersBtn");
+const adminUsersTableBody = byId("adminUsersTableBody");
+
+const createPatientPhone = byId("createPatientPhone");
+const createPatientName = byId("createPatientName");
+const createPatientDob = byId("createPatientDob");
+const createPatientEmail = byId("createPatientEmail");
+const createPatientAddress = byId("createPatientAddress");
+const createPatientEmergencyContactName = byId("createPatientEmergencyContactName");
+const createPatientEmergencyContactPhone = byId("createPatientEmergencyContactPhone");
+const createPatientInsuranceProvider = byId("createPatientInsuranceProvider");
+const createPatientIdDocumentUrl = byId("createPatientIdDocumentUrl");
+const createPatientBtn = byId("createPatientBtn");
+const refreshPatientsBtn = byId("refreshPatientsBtn");
+const adminPatientsTableBody = byId("adminPatientsTableBody");
+
+const profile360EntityType = byId("profile360EntityType");
+const profile360EntityId = byId("profile360EntityId");
+const loadProfile360Btn = byId("loadProfile360Btn");
+const adminProfile360Output = byId("adminProfile360Output");
+const adminProfile360ActivityBody = byId("adminProfile360ActivityBody");
 
 const adminCaseStatusFilter = byId("adminCaseStatusFilter");
 const adminCaseLimit = byId("adminCaseLimit");
@@ -95,6 +119,10 @@ const adminRelayFailedJobsBody = byId("adminRelayFailedJobsBody");
 adminIdInput.value = adminId;
 adminEmailInput.value = localStorage.getItem(storageKeys.adminEmail) || "";
 adminTriageEvalState.value = "OH";
+
+if (!adminToken && !adminId) {
+  window.location.href = "/portal/admin-login.html";
+}
 
 function parseCaseTriageTranscript(rawValue) {
   if (typeof rawValue !== "string" || !rawValue.trim()) {
@@ -170,6 +198,28 @@ function authHeaders() {
   }
 
   return buildAuthHeaders("ADMIN", adminId);
+}
+
+function normalizeNullableInput(value) {
+  if (value === null || value === undefined) {
+    return undefined;
+  }
+  const trimmed = String(value).trim();
+  return trimmed ? trimmed : null;
+}
+
+function parseDateInputToIso(value) {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const asDate = new Date(`${trimmed}T00:00:00.000Z`);
+  if (Number.isNaN(asDate.getTime())) {
+    throw new Error("Invalid date format");
+  }
+
+  return asDate.toISOString();
 }
 
 function renderOverview(data) {
@@ -302,6 +352,9 @@ function renderDoctors(doctors) {
               <button class="secondary doc-kyc-btn" data-doctor-id="${escapeHtml(doctor.id)}" data-kyc="APPROVED">Approve KYC</button>
               <button class="secondary doc-reset-btn" data-doctor-id="${escapeHtml(doctor.id)}">Reset Password</button>
               <button class="secondary doc-schedule-btn" data-doctor-id="${escapeHtml(doctor.id)}">Schedule</button>
+              <button class="secondary doc-edit-btn" data-doctor-id="${escapeHtml(doctor.id)}">Edit</button>
+              <button class="secondary doc-profile-btn" data-doctor-id="${escapeHtml(doctor.id)}">Profile360</button>
+              <button class="warn doc-delete-btn" data-doctor-id="${escapeHtml(doctor.id)}">Delete</button>
             </div>
           </td>
         </tr>
@@ -429,6 +482,442 @@ function renderDoctors(doctors) {
       }
     });
   });
+
+  adminDoctorsTableBody.querySelectorAll(".doc-edit-btn").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const doctorId = button.getAttribute("data-doctor-id");
+      const doctor = doctorsCache.find((item) => item.id === doctorId);
+      if (!doctorId || !doctor) {
+        return;
+      }
+
+      const fullName = prompt("Doctor full name", doctor.fullName || "");
+      if (fullName === null) {
+        return;
+      }
+      const email = prompt("Doctor email", doctor.email || "");
+      if (email === null) {
+        return;
+      }
+      const npiNumber = prompt("NPI number", doctor.npiNumber || "");
+      if (npiNumber === null) {
+        return;
+      }
+      const licenseState = prompt("License state (2 letters, blank clears)", doctor.licenseState || "");
+      if (licenseState === null) {
+        return;
+      }
+      const specialty = prompt("Specialty (blank clears)", doctor.specialty || "");
+      if (specialty === null) {
+        return;
+      }
+      const webexPersonId = prompt("Webex Person ID (blank clears)", doctor.webexPersonId || "");
+      if (webexPersonId === null) {
+        return;
+      }
+
+      try {
+        await apiRequest(`/api/v1/admin/doctors/${doctorId}`, {
+          method: "PATCH",
+          headers: authHeaders(),
+          body: JSON.stringify({
+            fullName: fullName.trim(),
+            email: email.trim(),
+            npiNumber: npiNumber.trim(),
+            licenseState: licenseState.trim() ? licenseState.trim().toUpperCase() : null,
+            specialty: specialty.trim() ? specialty.trim() : null,
+            webexPersonId: webexPersonId.trim() ? webexPersonId.trim() : null
+          })
+        });
+        await loadDoctors();
+        setStatus(adminStatusBar, "Doctor updated.", "success");
+      } catch (error) {
+        setStatus(adminStatusBar, error.message || "Failed to update doctor", "error");
+      }
+    });
+  });
+
+  adminDoctorsTableBody.querySelectorAll(".doc-profile-btn").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const doctorId = button.getAttribute("data-doctor-id");
+      if (!doctorId) {
+        return;
+      }
+
+      try {
+        await loadProfile360("DOCTOR", doctorId);
+        setStatus(adminStatusBar, "Doctor Profile360 loaded.", "success");
+      } catch (error) {
+        setStatus(adminStatusBar, error.message || "Failed to load doctor Profile360", "error");
+      }
+    });
+  });
+
+  adminDoctorsTableBody.querySelectorAll(".doc-delete-btn").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const doctorId = button.getAttribute("data-doctor-id");
+      if (!doctorId) {
+        return;
+      }
+      if (!confirm("Delete this doctor? This cannot be undone.")) {
+        return;
+      }
+
+      try {
+        await apiRequest(`/api/v1/admin/doctors/${doctorId}`, {
+          method: "DELETE",
+          headers: authHeaders()
+        });
+        await loadDoctors();
+        setStatus(adminStatusBar, "Doctor deleted.", "success");
+      } catch (error) {
+        setStatus(adminStatusBar, error.message || "Failed to delete doctor", "error");
+      }
+    });
+  });
+}
+
+function renderAdminUsers(users) {
+  if (!users.length) {
+    adminUsersTableBody.innerHTML = `<tr><td colspan="4" class="muted">No admin users found.</td></tr>`;
+    return;
+  }
+
+  adminUsersTableBody.innerHTML = users
+    .map((user) => {
+      const nextActive = user.isActive ? "false" : "true";
+      const activeLabel = user.isActive ? "Deactivate" : "Activate";
+      return `
+        <tr>
+          <td>
+            <div><strong>${escapeHtml(user.fullName || "-")}</strong></div>
+            <div class="muted">${escapeHtml(user.email || "-")}</div>
+            <div class="muted">${escapeHtml(user.id || "-")}</div>
+          </td>
+          <td>${escapeHtml(String(Boolean(user.isActive)))}</td>
+          <td>${escapeHtml(formatDateTime(user.updatedAt || user.createdAt))}</td>
+          <td>
+            <div class="btnrow">
+              <button class="secondary admin-user-toggle-btn" data-admin-user-id="${escapeHtml(user.id)}" data-next-active="${nextActive}">${activeLabel}</button>
+              <button class="secondary admin-user-edit-btn" data-admin-user-id="${escapeHtml(user.id)}">Edit</button>
+              <button class="secondary admin-user-reset-btn" data-admin-user-id="${escapeHtml(user.id)}">Reset Password</button>
+              <button class="secondary admin-user-profile-btn" data-admin-user-id="${escapeHtml(user.id)}">Profile360</button>
+              <button class="warn admin-user-delete-btn" data-admin-user-id="${escapeHtml(user.id)}">Delete</button>
+            </div>
+          </td>
+        </tr>
+      `;
+    })
+    .join("");
+
+  adminUsersTableBody.querySelectorAll(".admin-user-toggle-btn").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const adminUserId = button.getAttribute("data-admin-user-id");
+      const isActive = button.getAttribute("data-next-active") === "true";
+      if (!adminUserId) {
+        return;
+      }
+
+      try {
+        await apiRequest(`/api/v1/admin/admin-users/${adminUserId}`, {
+          method: "PATCH",
+          headers: authHeaders(),
+          body: JSON.stringify({ isActive })
+        });
+        await loadAdminUsers();
+        setStatus(adminStatusBar, "Admin user status updated.", "success");
+      } catch (error) {
+        setStatus(adminStatusBar, error.message || "Failed to update admin user status", "error");
+      }
+    });
+  });
+
+  adminUsersTableBody.querySelectorAll(".admin-user-edit-btn").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const adminUserId = button.getAttribute("data-admin-user-id");
+      const user = adminUsersCache.find((item) => item.id === adminUserId);
+      if (!adminUserId || !user) {
+        return;
+      }
+
+      const fullName = prompt("Admin full name", user.fullName || "");
+      if (fullName === null) {
+        return;
+      }
+      const email = prompt("Admin email", user.email || "");
+      if (email === null) {
+        return;
+      }
+
+      try {
+        await apiRequest(`/api/v1/admin/admin-users/${adminUserId}`, {
+          method: "PATCH",
+          headers: authHeaders(),
+          body: JSON.stringify({
+            fullName: fullName.trim(),
+            email: email.trim()
+          })
+        });
+        await loadAdminUsers();
+        setStatus(adminStatusBar, "Admin user updated.", "success");
+      } catch (error) {
+        setStatus(adminStatusBar, error.message || "Failed to update admin user", "error");
+      }
+    });
+  });
+
+  adminUsersTableBody.querySelectorAll(".admin-user-reset-btn").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const adminUserId = button.getAttribute("data-admin-user-id");
+      if (!adminUserId) {
+        return;
+      }
+
+      const password = prompt("Enter a new password (min 8 chars)");
+      if (!password) {
+        return;
+      }
+
+      try {
+        await apiRequest(`/api/v1/admin/admin-users/${adminUserId}/password`, {
+          method: "PATCH",
+          headers: authHeaders(),
+          body: JSON.stringify({ password })
+        });
+        setStatus(adminStatusBar, "Admin user password reset.", "success");
+      } catch (error) {
+        setStatus(adminStatusBar, error.message || "Failed to reset admin user password", "error");
+      }
+    });
+  });
+
+  adminUsersTableBody.querySelectorAll(".admin-user-profile-btn").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const adminUserId = button.getAttribute("data-admin-user-id");
+      if (!adminUserId) {
+        return;
+      }
+
+      try {
+        await loadProfile360("ADMIN_USER", adminUserId);
+        setStatus(adminStatusBar, "Admin user Profile360 loaded.", "success");
+      } catch (error) {
+        setStatus(adminStatusBar, error.message || "Failed to load admin user Profile360", "error");
+      }
+    });
+  });
+
+  adminUsersTableBody.querySelectorAll(".admin-user-delete-btn").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const adminUserId = button.getAttribute("data-admin-user-id");
+      if (!adminUserId) {
+        return;
+      }
+      if (!confirm("Delete this admin user? This cannot be undone.")) {
+        return;
+      }
+
+      try {
+        await apiRequest(`/api/v1/admin/admin-users/${adminUserId}`, {
+          method: "DELETE",
+          headers: authHeaders()
+        });
+        await loadAdminUsers();
+        setStatus(adminStatusBar, "Admin user deleted.", "success");
+      } catch (error) {
+        setStatus(adminStatusBar, error.message || "Failed to delete admin user", "error");
+      }
+    });
+  });
+}
+
+function renderPatients(patients) {
+  if (!patients.length) {
+    adminPatientsTableBody.innerHTML = `<tr><td colspan="4" class="muted">No patients found.</td></tr>`;
+    return;
+  }
+
+  adminPatientsTableBody.innerHTML = patients
+    .map((patient) => {
+      return `
+        <tr>
+          <td>
+            <div><strong>${escapeHtml(patient.fullName || "-")}</strong></div>
+            <div class="muted">${escapeHtml(patient.id || "-")}</div>
+          </td>
+          <td>
+            <div>${escapeHtml(patient.whatsappPhone || "-")}</div>
+            <div class="muted">${escapeHtml(patient.email || "-")}</div>
+          </td>
+          <td>${escapeHtml(formatDateTime(patient.updatedAt || patient.createdAt))}</td>
+          <td>
+            <div class="btnrow">
+              <button class="secondary patient-edit-btn" data-patient-id="${escapeHtml(patient.id)}">Edit</button>
+              <button class="secondary patient-profile-btn" data-patient-id="${escapeHtml(patient.id)}">Profile360</button>
+              <button class="warn patient-delete-btn" data-patient-id="${escapeHtml(patient.id)}">Delete</button>
+            </div>
+          </td>
+        </tr>
+      `;
+    })
+    .join("");
+
+  adminPatientsTableBody.querySelectorAll(".patient-edit-btn").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const patientId = button.getAttribute("data-patient-id");
+      const patient = patientsCache.find((item) => item.id === patientId);
+      if (!patientId || !patient) {
+        return;
+      }
+
+      const fullName = prompt("Patient full name", patient.fullName || "");
+      if (fullName === null) {
+        return;
+      }
+      const whatsappPhone = prompt("WhatsApp phone", patient.whatsappPhone || "");
+      if (whatsappPhone === null) {
+        return;
+      }
+      const email = prompt("Email (blank clears)", patient.email || "");
+      if (email === null) {
+        return;
+      }
+      const address = prompt("Address (blank clears)", patient.address || "");
+      if (address === null) {
+        return;
+      }
+      const emergencyContactName = prompt(
+        "Emergency contact name (blank clears)",
+        patient.emergencyContactName || ""
+      );
+      if (emergencyContactName === null) {
+        return;
+      }
+      const emergencyContactPhone = prompt(
+        "Emergency contact phone (blank clears)",
+        patient.emergencyContactPhone || ""
+      );
+      if (emergencyContactPhone === null) {
+        return;
+      }
+      const insuranceProvider = prompt("Insurance provider (blank clears)", patient.insuranceProvider || "");
+      if (insuranceProvider === null) {
+        return;
+      }
+      const idDocumentUrl = prompt("ID document URL (blank clears)", patient.idDocumentUrl || "");
+      if (idDocumentUrl === null) {
+        return;
+      }
+
+      try {
+        await apiRequest(`/api/v1/admin/patients/${patientId}`, {
+          method: "PATCH",
+          headers: authHeaders(),
+          body: JSON.stringify({
+            fullName: fullName.trim(),
+            whatsappPhone: whatsappPhone.trim(),
+            email: normalizeNullableInput(email),
+            address: normalizeNullableInput(address),
+            emergencyContactName: normalizeNullableInput(emergencyContactName),
+            emergencyContactPhone: normalizeNullableInput(emergencyContactPhone),
+            insuranceProvider: normalizeNullableInput(insuranceProvider),
+            idDocumentUrl: normalizeNullableInput(idDocumentUrl)
+          })
+        });
+        await loadPatients();
+        setStatus(adminStatusBar, "Patient updated.", "success");
+      } catch (error) {
+        setStatus(adminStatusBar, error.message || "Failed to update patient", "error");
+      }
+    });
+  });
+
+  adminPatientsTableBody.querySelectorAll(".patient-profile-btn").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const patientId = button.getAttribute("data-patient-id");
+      if (!patientId) {
+        return;
+      }
+
+      try {
+        await loadProfile360("PATIENT", patientId);
+        setStatus(adminStatusBar, "Patient Profile360 loaded.", "success");
+      } catch (error) {
+        setStatus(adminStatusBar, error.message || "Failed to load patient Profile360", "error");
+      }
+    });
+  });
+
+  adminPatientsTableBody.querySelectorAll(".patient-delete-btn").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const patientId = button.getAttribute("data-patient-id");
+      if (!patientId) {
+        return;
+      }
+      if (!confirm("Delete this patient? This cannot be undone.")) {
+        return;
+      }
+
+      try {
+        await apiRequest(`/api/v1/admin/patients/${patientId}`, {
+          method: "DELETE",
+          headers: authHeaders()
+        });
+        await loadPatients();
+        setStatus(adminStatusBar, "Patient deleted.", "success");
+      } catch (error) {
+        setStatus(adminStatusBar, error.message || "Failed to delete patient", "error");
+      }
+    });
+  });
+}
+
+function renderProfile360(data) {
+  if (!data || !data.profile) {
+    adminProfile360Output.innerHTML = "Profile360 data unavailable.";
+    adminProfile360ActivityBody.innerHTML = `<tr><td colspan="3" class="muted">No activity available.</td></tr>`;
+    return;
+  }
+
+  const metrics = data.metrics && typeof data.metrics === "object"
+    ? Object.entries(data.metrics)
+        .map(([key, value]) => `<span class="badge">${escapeHtml(`${key}: ${value}`)}</span>`)
+        .join(" ")
+    : `<span class="badge">No metrics</span>`;
+
+  adminProfile360Output.innerHTML = `
+    <div><strong>${escapeHtml(String(data.entityType || "-"))}</strong></div>
+    <div class="muted">${escapeHtml(String(data.profile.id || "-"))}</div>
+    <div style="margin-top: 6px">${metrics}</div>
+  `;
+
+  const items = Array.isArray(data.recentCases)
+    ? data.recentCases.map((item) => ({
+        activity: `Case ${item.id || "-"}`,
+        context: item.status || "-",
+        when: item.createdAt || item.updatedAt || null
+      }))
+    : Array.isArray(data.recentAudit)
+      ? data.recentAudit.map((item) => ({
+          activity: `${item.tableName || "-"} ${item.action || "-"}`,
+          context: item.recordId || "-",
+          when: item.createdAt || null
+        }))
+      : [];
+
+  adminProfile360ActivityBody.innerHTML = items.length
+    ? items
+        .map(
+          (item) => `
+            <tr>
+              <td>${escapeHtml(String(item.activity || "-"))}</td>
+              <td>${escapeHtml(String(item.context || "-"))}</td>
+              <td>${escapeHtml(formatDateTime(item.when))}</td>
+            </tr>
+          `
+        )
+        .join("")
+    : `<tr><td colspan="3" class="muted">No activity available.</td></tr>`;
 }
 
 function renderCases(cases) {
@@ -927,6 +1416,34 @@ async function loadDoctors() {
   renderDoctorOptions();
 }
 
+async function loadAdminUsers() {
+  adminUsersCache = await apiRequest("/api/v1/admin/admin-users", { headers: authHeaders() });
+  renderAdminUsers(adminUsersCache);
+}
+
+async function loadPatients() {
+  patientsCache = await apiRequest("/api/v1/admin/patients?limit=200", { headers: authHeaders() });
+  renderPatients(patientsCache);
+}
+
+async function loadProfile360(entityType, entityId) {
+  const normalizedEntityType = String(entityType || "").trim().toUpperCase();
+  const normalizedEntityId = String(entityId || "").trim();
+  if (!normalizedEntityType || !normalizedEntityId) {
+    throw new Error("Entity type and entity ID are required");
+  }
+
+  profile360EntityType.value = normalizedEntityType;
+  profile360EntityId.value = normalizedEntityId;
+
+  const data = await apiRequest(
+    `/api/v1/admin/profile360/${encodeURIComponent(normalizedEntityType)}/${encodeURIComponent(normalizedEntityId)}`,
+    { headers: authHeaders() }
+  );
+  renderProfile360(data);
+  return data;
+}
+
 async function loadCases() {
   const status = adminCaseStatusFilter.value;
   const limit = adminCaseLimit.value.trim() || "100";
@@ -1172,6 +1689,40 @@ async function createAdminUser() {
   createAdminUserPassword.value = "";
 }
 
+async function createPatient() {
+  const dateOfBirth = createPatientDob.value.trim()
+    ? parseDateInputToIso(createPatientDob.value)
+    : null;
+
+  const body = {
+    whatsappPhone: createPatientPhone.value.trim(),
+    fullName: createPatientName.value.trim(),
+    dateOfBirth,
+    email: normalizeNullableInput(createPatientEmail.value),
+    address: normalizeNullableInput(createPatientAddress.value),
+    emergencyContactName: normalizeNullableInput(createPatientEmergencyContactName.value),
+    emergencyContactPhone: normalizeNullableInput(createPatientEmergencyContactPhone.value),
+    insuranceProvider: normalizeNullableInput(createPatientInsuranceProvider.value),
+    idDocumentUrl: normalizeNullableInput(createPatientIdDocumentUrl.value)
+  };
+
+  await apiRequest("/api/v1/admin/patients", {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify(body)
+  });
+
+  createPatientPhone.value = "";
+  createPatientName.value = "";
+  createPatientDob.value = "";
+  createPatientEmail.value = "";
+  createPatientAddress.value = "";
+  createPatientEmergencyContactName.value = "";
+  createPatientEmergencyContactPhone.value = "";
+  createPatientInsuranceProvider.value = "";
+  createPatientIdDocumentUrl.value = "";
+}
+
 async function updateSelectedCaseStatus() {
   if (!selectedCaseId) {
     throw new Error("Select a case first");
@@ -1205,6 +1756,8 @@ async function refreshAll() {
   await loadOverview();
   await loadIntegrationStatus();
   await loadDoctors();
+  await loadAdminUsers();
+  await loadPatients();
   await loadCases();
   await loadCaseMessages();
   await loadWebhookSummary();
@@ -1251,6 +1804,10 @@ clearAdminSessionBtn.addEventListener("click", () => {
   adminIntegrationSummaryGrid.innerHTML = "";
   adminIntegrationStatusBody.innerHTML = "";
   adminDoctorsTableBody.innerHTML = "";
+  adminUsersTableBody.innerHTML = "";
+  adminPatientsTableBody.innerHTML = "";
+  adminProfile360Output.innerHTML = "Select a doctor, patient, or admin user to load Profile360.";
+  adminProfile360ActivityBody.innerHTML = "";
   adminCasesTableBody.innerHTML = "";
   adminCaseMessagesList.innerHTML = "";
   adminWebhookTableBody.innerHTML = "";
@@ -1271,7 +1828,22 @@ clearAdminSessionBtn.addEventListener("click", () => {
   adminRelayCaseId.value = "";
   adminRelayFailedName.value = "";
   adminRelayInjectDirection.value = "PATIENT_TO_WEBEX";
+  doctorsCache = [];
+  casesCache = [];
+  adminUsersCache = [];
+  patientsCache = [];
   setStatus(adminStatusBar, "Admin session cleared.");
+  window.location.href = "/portal/admin-login.html";
+});
+
+adminSignOutBtn.addEventListener("click", () => {
+  adminId = "";
+  adminToken = "";
+  selectedCaseId = "";
+  selectedCaseStatus = "";
+  localStorage.removeItem(storageKeys.adminId);
+  localStorage.removeItem(storageKeys.adminToken);
+  window.location.href = "/portal/admin-login.html";
 });
 
 createDoctorBtn.addEventListener("click", async () => {
@@ -1287,9 +1859,20 @@ createDoctorBtn.addEventListener("click", async () => {
 createAdminUserBtn.addEventListener("click", async () => {
   try {
     await createAdminUser();
+    await loadAdminUsers();
     setStatus(adminStatusBar, "Admin user created.", "success");
   } catch (error) {
     setStatus(adminStatusBar, error.message || "Failed to create admin user", "error");
+  }
+});
+
+createPatientBtn.addEventListener("click", async () => {
+  try {
+    await createPatient();
+    await loadPatients();
+    setStatus(adminStatusBar, "Patient created.", "success");
+  } catch (error) {
+    setStatus(adminStatusBar, error.message || "Failed to create patient", "error");
   }
 });
 
@@ -1299,6 +1882,33 @@ refreshDoctorsBtn.addEventListener("click", async () => {
     setStatus(adminStatusBar, "Doctors refreshed.", "success");
   } catch (error) {
     setStatus(adminStatusBar, error.message || "Failed to refresh doctors", "error");
+  }
+});
+
+refreshAdminUsersBtn.addEventListener("click", async () => {
+  try {
+    await loadAdminUsers();
+    setStatus(adminStatusBar, "Admin users refreshed.", "success");
+  } catch (error) {
+    setStatus(adminStatusBar, error.message || "Failed to refresh admin users", "error");
+  }
+});
+
+refreshPatientsBtn.addEventListener("click", async () => {
+  try {
+    await loadPatients();
+    setStatus(adminStatusBar, "Patients refreshed.", "success");
+  } catch (error) {
+    setStatus(adminStatusBar, error.message || "Failed to refresh patients", "error");
+  }
+});
+
+loadProfile360Btn.addEventListener("click", async () => {
+  try {
+    await loadProfile360(profile360EntityType.value, profile360EntityId.value);
+    setStatus(adminStatusBar, "Profile360 loaded.", "success");
+  } catch (error) {
+    setStatus(adminStatusBar, error.message || "Failed to load Profile360", "error");
   }
 });
 

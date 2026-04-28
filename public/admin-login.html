@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Login - WAdoctors</title>
+    <link rel="stylesheet" href="/portal/styles.css" />
+  </head>
+  <body
+    class="auth-page"
+    style="background-image: url('https://images.unsplash.com/photo-1586773860418-d37222d8fce3?auto=format&fit=crop&w=1800&q=80')"
+  >
+    <div class="auth-overlay"></div>
+    <div class="auth-card">
+      <h1>Admin Login</h1>
+      <div class="muted" style="margin-bottom: 12px">Operations and platform management workspace.</div>
+
+      <div class="field">
+        <label for="adminEmailInput">Admin Email</label>
+        <input id="adminEmailInput" placeholder="admin@wadoctors.local" />
+      </div>
+      <div class="field">
+        <label for="adminPasswordInput">Password</label>
+        <input id="adminPasswordInput" type="password" placeholder="Password" />
+      </div>
+      <div class="auth-actions" style="margin-bottom: 10px">
+        <button id="adminLoginBtn">Login</button>
+      </div>
+
+      <div class="muted" style="margin: 6px 0">Dev fallback</div>
+      <div class="field">
+        <label for="adminIdInput">Admin ID</label>
+        <input id="adminIdInput" placeholder="Admin UUID" />
+      </div>
+      <div class="auth-actions">
+        <button id="saveAdminSessionBtn" class="secondary">Use Admin ID</button>
+      </div>
+
+      <div id="adminStatusBar" class="statusbar" style="margin-top: 12px">Sign in to continue.</div>
+    </div>
+
+    <script type="module" src="/portal/js/admin-login.js"></script>
+  </body>
+</html>

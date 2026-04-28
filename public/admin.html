@@ -11,9 +11,10 @@
       <div class="topbar">
         <div class="brand">Admin Portal</div>
         <div class="nav">
-          <a href="/portal/index.html">Home</a>
-          <a href="/portal/doctor.html">Doctor</a>
-          <a class="active" href="/portal/admin.html">Admin</a>
+          <a href="/admin">Admin Login</a>
+          <a href="/doctor">Doctor Portal</a>
+          <a class="active" href="/portal/admin.html">Admin Workspace</a>
+          <button id="adminSignOutBtn" class="secondary">Sign Out</button>
         </div>
       </div>
 
@@ -162,6 +163,113 @@
           </div>
           <div class="btnrow">
             <button id="createAdminUserBtn">Create Admin User</button>
+            <button id="refreshAdminUsersBtn" class="secondary">Refresh Admin Users</button>
+          </div>
+          <div class="scrollbox" style="margin-top: 10px">
+            <table>
+              <thead>
+                <tr>
+                  <th>Admin User</th>
+                  <th>Status</th>
+                  <th>Updated</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="adminUsersTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>Patient Management</h2>
+          <div class="grid-3">
+            <div class="field">
+              <label for="createPatientPhone">WhatsApp Phone</label>
+              <input id="createPatientPhone" placeholder="+16145551234" />
+            </div>
+            <div class="field">
+              <label for="createPatientName">Full Name</label>
+              <input id="createPatientName" placeholder="Patient Name" />
+            </div>
+            <div class="field">
+              <label for="createPatientDob">Date of Birth</label>
+              <input id="createPatientDob" type="date" />
+            </div>
+            <div class="field">
+              <label for="createPatientEmail">Email</label>
+              <input id="createPatientEmail" placeholder="patient@email.com" />
+            </div>
+            <div class="field">
+              <label for="createPatientAddress">Address</label>
+              <input id="createPatientAddress" placeholder="Street, City, State" />
+            </div>
+            <div class="field">
+              <label for="createPatientEmergencyContactName">Emergency Contact Name</label>
+              <input id="createPatientEmergencyContactName" placeholder="Emergency Contact" />
+            </div>
+            <div class="field">
+              <label for="createPatientEmergencyContactPhone">Emergency Contact Phone</label>
+              <input id="createPatientEmergencyContactPhone" placeholder="+16145550000" />
+            </div>
+            <div class="field">
+              <label for="createPatientInsuranceProvider">Insurance Provider</label>
+              <input id="createPatientInsuranceProvider" placeholder="Insurance Provider" />
+            </div>
+            <div class="field">
+              <label for="createPatientIdDocumentUrl">ID Document URL</label>
+              <input id="createPatientIdDocumentUrl" placeholder="https://..." />
+            </div>
+          </div>
+          <div class="btnrow">
+            <button id="createPatientBtn">Create Patient</button>
+            <button id="refreshPatientsBtn" class="secondary">Refresh Patients</button>
+          </div>
+          <div class="scrollbox" style="margin-top: 10px">
+            <table>
+              <thead>
+                <tr>
+                  <th>Patient</th>
+                  <th>Contact</th>
+                  <th>Updated</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="adminPatientsTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>Profile360</h2>
+          <div class="grid-3">
+            <div class="field">
+              <label for="profile360EntityType">Entity Type</label>
+              <select id="profile360EntityType">
+                <option value="DOCTOR">DOCTOR</option>
+                <option value="PATIENT">PATIENT</option>
+                <option value="ADMIN_USER">ADMIN_USER</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="profile360EntityId">Entity ID</label>
+              <input id="profile360EntityId" placeholder="UUID" />
+            </div>
+            <div class="btnrow" style="align-items: end">
+              <button id="loadProfile360Btn" class="secondary">Load Profile360</button>
+            </div>
+          </div>
+          <div id="adminProfile360Output" class="muted">Select a doctor, patient, or admin user to load Profile360.</div>
+          <div class="scrollbox" style="margin-top: 10px">
+            <table>
+              <thead>
+                <tr>
+                  <th>Recent Activity</th>
+                  <th>Context</th>
+                  <th>When</th>
+                </tr>
+              </thead>
+              <tbody id="adminProfile360ActivityBody"></tbody>
+            </table>
           </div>
         </div>
 

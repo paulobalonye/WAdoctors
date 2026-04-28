@@ -17,15 +17,32 @@ app.use(cors());
 app.use(morgan("dev"));
 app.use("/webhooks", webhookRouter);
 app.use(express.json({ limit: "2mb" }));
-app.use("/portal", express.static(path.join(process.cwd(), "public")));
 
 app.get("/health", (_req, res) => {
   res.status(200).json({ status: "ok" });
 });
 
 app.get("/", (_req, res) => {
-  res.redirect("/portal");
+  res.redirect("/admin");
 });
+
+app.get("/admin", (_req, res) => {
+  res.redirect("/portal/admin-login.html");
+});
+
+app.get("/doctor", (_req, res) => {
+  res.redirect("/portal/doctor-login.html");
+});
+
+app.get("/portal", (_req, res) => {
+  res.redirect("/admin");
+});
+
+app.get("/portal/index.html", (_req, res) => {
+  res.redirect("/admin");
+});
+
+app.use("/portal", express.static(path.join(process.cwd(), "public")));
 
 app.get("/api/v1/meta", (_req, res) => {
   res.status(200).json({
