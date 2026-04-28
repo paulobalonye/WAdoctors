@@ -151,6 +151,10 @@ Relay retry request bodies may include optional `caseId` for targeted retries.
 `/api/v1/admin/relay/dev/inject-failure` is for non-production queue-mode drills and accepts `direction` + optional `caseId`.
 `POST /api/v1/admin/cases/:caseId/replay` supports manual relay replay with body `{ "direction": "PATIENT_TO_WEBEX" | "DOCTOR_TO_WHATSAPP", "messageId?": "<optional>" }`.
 `GET /api/v1/admin/relay/health` now includes queue alert state (`ok`/`warning`/`critical`) and active alert details for dead-letter/backlog conditions.
+Doctor availability schedule payloads support legacy weekday windows and enhanced calendar config:
+- `timezone` (IANA zone, defaults to `America/New_York`)
+- `weekly` map with single or split shifts per day
+- `holidays` overrides by `YYYY-MM-DD` (`isOff` or custom `windows`)
 Queue drill steps are documented in `docs/RELAY_QUEUE_DRILL.md`.
 AI triage drill steps are documented in `docs/AI_TRIAGE_DRILL.md`.
 AWS dev deployment baseline is documented in `docs/AWS_DEV_BASELINE.md`.
@@ -221,9 +225,10 @@ Safety guard:
 27. Admin replay-by-case endpoint added for controlled relay recovery actions.
 28. Dockerized AWS-dev baseline added (API + worker + Postgres + Redis).
 29. Relay queue health now emits dead-letter alert severity (`ok`/`warning`/`critical`) with actionable queue alert details in API and admin portal.
+30. Doctor availability now supports calendar-style split shifts and holiday overrides (with validation on admin create/update schedule flows).
 
 ## Next implementation steps
 
-1. Add calendar-based shifts and holiday overrides for doctor availability.
+1. Add a visual doctor schedule editor in admin portal (replace raw JSON prompt workflow).
 2. Add webhook signature-failure and duplicate-event alerting panels in admin portal.
 3. Add staged go-live rehearsal checklist (webhooks, relay queue, AI triage, rollback path).

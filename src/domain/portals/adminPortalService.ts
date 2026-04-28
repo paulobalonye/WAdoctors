@@ -3,7 +3,10 @@ import { env } from "../../config/env.js";
 import { prisma } from "../../lib/prisma.js";
 import { getRelayQueue } from "../../queues/relayQueue.js";
 import { hashPortalPassword } from "../auth/authService.js";
-import { defaultDoctorAvailability } from "../cases/doctorAvailability.js";
+import {
+  defaultDoctorAvailability,
+  validateDoctorAvailability
+} from "../cases/doctorAvailability.js";
 import { buildWhatsAppWorkflowPreviewWithAI } from "../consultations/whatsappWorkflow.js";
 import { dispatchDoctorToWhatsApp, dispatchPatientToWebex } from "../messages/relayDispatcher.js";
 import { buildCaseTriageView } from "./caseTriageView.js";
@@ -404,7 +407,11 @@ export async function createAdminDoctor(params: {
   maxConcurrentCases?: number;
 }) {
   const passwordHash = await hashPortalPassword(params.password);
-  const availability = (params.availability ?? defaultDoctorAvailability()) as Prisma.InputJsonValue;
+  const requestedAvailability = params.availability ?? defaultDoctorAvailability();
+  if (!validateDoctorAvailability(requestedAvailability)) {
+    throw new Error("Invalid doctor availability payload");
+  }
+  const availability = requestedAvailability as Prisma.InputJsonValue;
 
   return prisma.doctor.create({
     data: {
@@ -455,6 +462,10 @@ export async function setDoctorSchedule(params: {
   availability: unknown;
   maxConcurrentCases?: number;
 }) {
+  if (!validateDoctorAvailability(params.availability)) {
+    throw new Error("Invalid doctor availability payload");
+  }
+
   const availability = params.availability as Prisma.InputJsonValue;
 
   return prisma.doctor.update({
