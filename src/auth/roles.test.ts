@@ -3,6 +3,7 @@ import { env } from "../config/env.js";
 import { devAuthMiddleware, isDevHeaderAuthEnabled, type AuthedRequest } from "./roles.js";
 
 const originalNodeEnv = env.NODE_ENV;
+const originalAppEnv = env.APP_ENV;
 const originalAllowDevHeaderAuth = env.ALLOW_DEV_HEADER_AUTH;
 
 function buildRequest(headers: Record<string, string | undefined>): AuthedRequest {
@@ -37,6 +38,7 @@ function buildResponse() {
 
 afterEach(() => {
   (env as { NODE_ENV: "development" | "test" | "production" }).NODE_ENV = originalNodeEnv;
+  (env as { APP_ENV: "development" | "test" | "staging" | "production" }).APP_ENV = originalAppEnv;
   (env as { ALLOW_DEV_HEADER_AUTH: "true" | "false" }).ALLOW_DEV_HEADER_AUTH =
     originalAllowDevHeaderAuth;
 });
@@ -44,10 +46,14 @@ afterEach(() => {
 describe("isDevHeaderAuthEnabled", () => {
   it("returns true only in non-production when ALLOW_DEV_HEADER_AUTH=true", () => {
     (env as { NODE_ENV: "development" | "test" | "production" }).NODE_ENV = "development";
+    (env as { APP_ENV: "development" | "test" | "staging" | "production" }).APP_ENV = "development";
     (env as { ALLOW_DEV_HEADER_AUTH: "true" | "false" }).ALLOW_DEV_HEADER_AUTH = "true";
     expect(isDevHeaderAuthEnabled()).toBe(true);
 
-    (env as { NODE_ENV: "development" | "test" | "production" }).NODE_ENV = "production";
+    (env as { APP_ENV: "development" | "test" | "staging" | "production" }).APP_ENV = "staging";
+    expect(isDevHeaderAuthEnabled()).toBe(false);
+
+    (env as { APP_ENV: "development" | "test" | "staging" | "production" }).APP_ENV = "production";
     expect(isDevHeaderAuthEnabled()).toBe(false);
   });
 });
@@ -55,6 +61,7 @@ describe("isDevHeaderAuthEnabled", () => {
 describe("devAuthMiddleware", () => {
   it("rejects header-only auth when running in production", () => {
     (env as { NODE_ENV: "development" | "test" | "production" }).NODE_ENV = "production";
+    (env as { APP_ENV: "development" | "test" | "staging" | "production" }).APP_ENV = "production";
     (env as { ALLOW_DEV_HEADER_AUTH: "true" | "false" }).ALLOW_DEV_HEADER_AUTH = "true";
 
     const req = buildRequest({
@@ -73,6 +80,7 @@ describe("devAuthMiddleware", () => {
 
   it("accepts header auth in development when enabled", () => {
     (env as { NODE_ENV: "development" | "test" | "production" }).NODE_ENV = "development";
+    (env as { APP_ENV: "development" | "test" | "staging" | "production" }).APP_ENV = "development";
     (env as { ALLOW_DEV_HEADER_AUTH: "true" | "false" }).ALLOW_DEV_HEADER_AUTH = "true";
 
     const req = buildRequest({

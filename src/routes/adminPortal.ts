@@ -597,8 +597,8 @@ adminPortalRouter.post("/relay/failed/clear", async (req: AuthedRequest, res: Re
 
 adminPortalRouter.post("/relay/dev/inject-failure", async (req: AuthedRequest, res: Response) => {
   try {
-    if (env.NODE_ENV === "production") {
-      res.status(403).json({ error: "Relay failure injection is disabled in production" });
+    if (env.APP_ENV === "staging" || env.APP_ENV === "production") {
+      res.status(403).json({ error: "Relay failure injection is disabled in staging/production" });
       return;
     }
 

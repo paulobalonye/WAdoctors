@@ -38,9 +38,9 @@ services:
     depends_on:
       - postgres
       - redis
-    command: ["sh", "-lc", "pnpm prisma:deploy && node dist/server.js"]
+    command: ["sh", "-lc", "pnpm prisma:deploy && pnpm prisma:seed && node dist/server.js"]
     ports:
-      - "3000:3000"
+      - "38080:3000"
 
   relay-worker:
     build:

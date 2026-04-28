@@ -29,6 +29,17 @@ import { buildWebhookSummary } from "./webhookSummary.js";
 const ACTIVE_CASE_STATUSES: CaseStatus[] = ["NEW", "TRIAGING", "ASSIGNED", "IN_PROGRESS", "ESCALATED"];
 type RelayQueueInstance = NonNullable<ReturnType<typeof getRelayQueue>>;
 
+function getRelayAlertThresholds() {
+  return {
+    pendingWarning: env.RELAY_ALERT_PENDING_WARNING,
+    pendingCritical: env.RELAY_ALERT_PENDING_CRITICAL,
+    failedWarning: env.RELAY_ALERT_FAILED_WARNING,
+    failedCritical: env.RELAY_ALERT_FAILED_CRITICAL,
+    oldestFailedMinutesWarning: env.RELAY_ALERT_OLDEST_FAILED_MINUTES_WARNING,
+    oldestFailedMinutesCritical: env.RELAY_ALERT_OLDEST_FAILED_MINUTES_CRITICAL
+  };
+}
+
 function getRelayQueueAccess():
   | {
       queue: RelayQueueInstance;
@@ -538,9 +549,10 @@ export async function getWebhookSummary(windowHours: number) {
 }
 
 export async function getRelayQueueHealth(failedLimit: number) {
+  const thresholds = getRelayAlertThresholds();
   const access = getRelayQueueAccess();
   if ("reason" in access) {
-    return buildRelayQueueDisabledSummary(access.reason);
+    return buildRelayQueueDisabledSummary(access.reason, thresholds);
   }
 
   try {
@@ -575,7 +587,8 @@ export async function getRelayQueueHealth(failedLimit: number) {
         attemptsMade: job.attemptsMade,
         finishedOn: job.finishedOn,
         timestamp: job.timestamp
-      }))
+      })),
+      thresholds
     });
   } catch (error) {
     const reason = error instanceof Error ? error.message : "Unable to inspect relay queue";
@@ -592,7 +605,8 @@ export async function getRelayQueueHealth(failedLimit: number) {
         failed: 0,
         completed: 0
       },
-      failedJobs: []
+      failedJobs: [],
+      thresholds
     });
   }
 }

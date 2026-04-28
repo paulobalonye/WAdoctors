@@ -60,7 +60,8 @@ function parseJwtAuth(token: string): AuthContext | null {
 }
 
 export function isDevHeaderAuthEnabled(): boolean {
-  return env.ALLOW_DEV_HEADER_AUTH === "true" && env.NODE_ENV !== "production";
+  const isLiveEnv = env.APP_ENV === "staging" || env.APP_ENV === "production";
+  return env.ALLOW_DEV_HEADER_AUTH === "true" && !isLiveEnv;
 }
 
 export function devAuthMiddleware(req: AuthedRequest, res: Response, next: NextFunction): void {

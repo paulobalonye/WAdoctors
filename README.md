@@ -87,6 +87,13 @@ For Docker-based AWS-dev parity (API + worker + Postgres + Redis):
 pnpm awsdev:up
 ```
 
+Portal URLs in Docker mode:
+- `http://localhost:38080/portal/admin.html`
+- `http://localhost:38080/portal/doctor.html`
+- `http://localhost:38080/portal/index.html`
+
+The Docker API container runs `prisma deploy` and `prisma seed` on startup, so bootstrap admin/doctor users are available for login.
+
 9. Open portals:
 
 - `http://localhost:3000/portal/index.html`
@@ -143,6 +150,7 @@ Relay retry request bodies may include optional `caseId` for targeted retries.
 `POST /api/v1/admin/triage/evaluate` accepts `messageText` plus optional `patientState` for simulation.
 `/api/v1/admin/relay/dev/inject-failure` is for non-production queue-mode drills and accepts `direction` + optional `caseId`.
 `POST /api/v1/admin/cases/:caseId/replay` supports manual relay replay with body `{ "direction": "PATIENT_TO_WEBEX" | "DOCTOR_TO_WHATSAPP", "messageId?": "<optional>" }`.
+`GET /api/v1/admin/relay/health` now includes queue alert state (`ok`/`warning`/`critical`) and active alert details for dead-letter/backlog conditions.
 Queue drill steps are documented in `docs/RELAY_QUEUE_DRILL.md`.
 AI triage drill steps are documented in `docs/AI_TRIAGE_DRILL.md`.
 AWS dev deployment baseline is documented in `docs/AWS_DEV_BASELINE.md`.
@@ -159,6 +167,14 @@ AI triage can be enabled with:
 
 When enabled, AI urgency is blended with a safety floor from the existing keyword heuristic (never lower than baseline), and fallback stays active if AI is unavailable.
 
+Relay queue alert thresholds can be tuned with:
+- `RELAY_ALERT_PENDING_WARNING`
+- `RELAY_ALERT_PENDING_CRITICAL`
+- `RELAY_ALERT_FAILED_WARNING`
+- `RELAY_ALERT_FAILED_CRITICAL`
+- `RELAY_ALERT_OLDEST_FAILED_MINUTES_WARNING`
+- `RELAY_ALERT_OLDEST_FAILED_MINUTES_CRITICAL`
+
 ## Portal auth
 
 Primary mode:
@@ -172,7 +188,7 @@ Development fallback (enabled by `ALLOW_DEV_HEADER_AUTH=true`):
 - `x-user-id: <doctor-or-admin-id>`
 
 Safety guard:
-- Header fallback is automatically disabled when `NODE_ENV=production`, even if `ALLOW_DEV_HEADER_AUTH=true`.
+- Header fallback is automatically disabled when `APP_ENV=staging` or `APP_ENV=production`, even if `ALLOW_DEV_HEADER_AUTH=true`.
 
 ## Implemented in kickoff
 
@@ -204,10 +220,10 @@ Safety guard:
 26. Webhook processors now include loop/echo guards for relayed content patterns.
 27. Admin replay-by-case endpoint added for controlled relay recovery actions.
 28. Dockerized AWS-dev baseline added (API + worker + Postgres + Redis).
+29. Relay queue health now emits dead-letter alert severity (`ok`/`warning`/`critical`) with actionable queue alert details in API and admin portal.
 
 ## Next implementation steps
 
-1. Add dead-letter monitoring dashboards and queue alerting.
-2. Add calendar-based shifts and holiday overrides for doctor availability.
-3. Disable header fallback in staging/prod (`ALLOW_DEV_HEADER_AUTH=false`) and enforce JWT-only portal access.
-4. Add first Prisma migration set and seed pipeline.
+1. Add calendar-based shifts and holiday overrides for doctor availability.
+2. Add webhook signature-failure and duplicate-event alerting panels in admin portal.
+3. Add staged go-live rehearsal checklist (webhooks, relay queue, AI triage, rollback path).

@@ -89,6 +89,7 @@ const injectRelayFailureBtn = byId("injectRelayFailureBtn");
 const clearRelayFailedBtn = byId("clearRelayFailedBtn");
 const adminRelayHealthGrid = byId("adminRelayHealthGrid");
 const adminRelayHealthNote = byId("adminRelayHealthNote");
+const adminRelayAlerts = byId("adminRelayAlerts");
 const adminRelayFailedJobsBody = byId("adminRelayFailedJobsBody");
 
 adminIdInput.value = adminId;
@@ -719,12 +720,29 @@ function getRelayFailedNameFilter() {
   return relayJobNames.has(name) ? name : undefined;
 }
 
+function normalizeRelayAlertSeverity(value) {
+  if (value === "critical") {
+    return "critical";
+  }
+  if (value === "warning") {
+    return "warning";
+  }
+  return "ok";
+}
+
 function renderRelayHealth(health) {
   if (!health || !health.counts) {
     adminRelayHealthGrid.innerHTML = `<div class="muted">Relay health unavailable.</div>`;
     adminRelayHealthNote.textContent = "Unable to load relay health.";
+    adminRelayAlerts.innerHTML = `<div class="muted">No relay alert data available.</div>`;
     return;
   }
+
+  const alertState = normalizeRelayAlertSeverity(health.alertState);
+  const oldestFailedAgeMinutes =
+    Number.isFinite(Number(health.oldestFailedAgeMinutes)) && Number(health.oldestFailedAgeMinutes) >= 0
+      ? String(Math.floor(Number(health.oldestFailedAgeMinutes)))
+      : "-";
 
   const cards = [
     {
@@ -756,6 +774,16 @@ function renderRelayHealth(health) {
       label: "Completed Jobs",
       value: String(health.counts.completed ?? 0),
       meta: "Current completed set"
+    },
+    {
+      label: "Alert State",
+      value: alertState.toUpperCase(),
+      meta: "ok, warning, or critical"
+    },
+    {
+      label: "Oldest Failed (min)",
+      value: oldestFailedAgeMinutes,
+      meta: "Age of oldest failed relay job"
     }
   ];
 
@@ -771,7 +799,25 @@ function renderRelayHealth(health) {
     })
     .join("");
 
-  adminRelayHealthNote.textContent = health.reason || "Relay queue reachable.";
+  const alerts = Array.isArray(health.alerts) ? health.alerts : [];
+  if (!alerts.length) {
+    adminRelayHealthNote.textContent = health.reason || "No active queue alerts.";
+    adminRelayAlerts.innerHTML = `<div class="muted">No active queue alerts.</div>`;
+    return;
+  }
+
+  adminRelayHealthNote.textContent = `${alerts.length} active relay queue alert(s).`;
+  adminRelayAlerts.innerHTML = alerts
+    .map((alert) => {
+      const severity = normalizeRelayAlertSeverity(alert?.severity);
+      return `
+        <div class="relay-alert-item ${escapeHtml(severity)}">
+          <span class="badge ${escapeHtml(severity)}">${escapeHtml(String(severity).toUpperCase())}</span>
+          <span>${escapeHtml(String(alert?.message || "Relay queue alert"))}</span>
+        </div>
+      `;
+    })
+    .join("");
 }
 
 function renderRelayFailedJobs(data) {
@@ -1218,6 +1264,7 @@ clearAdminSessionBtn.addEventListener("click", () => {
   adminTriageEvalMessage.value = "";
   adminRelayHealthGrid.innerHTML = "";
   adminRelayHealthNote.textContent = "";
+  adminRelayAlerts.innerHTML = "";
   adminRelayFailedJobsBody.innerHTML = "";
   adminCaseTriageSourceFilter.value = "";
   adminCaseTriageRouteFilter.value = "";

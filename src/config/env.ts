@@ -5,6 +5,7 @@ dotenv.config();
 
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  APP_ENV: z.enum(["development", "test", "staging", "production"]).optional(),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
   DATABASE_URL: z.string().min(1),
   API_BASE_URL: z.string().url(),
@@ -14,6 +15,12 @@ const envSchema = z.object({
   LAUNCH_STATE: z.string().length(2).default("OH"),
   REDIS_URL: z.string().optional(),
   RELAY_DISPATCH_MODE: z.enum(["inline", "queue"]).default("inline"),
+  RELAY_ALERT_PENDING_WARNING: z.coerce.number().int().min(1).default(20),
+  RELAY_ALERT_PENDING_CRITICAL: z.coerce.number().int().min(1).default(50),
+  RELAY_ALERT_FAILED_WARNING: z.coerce.number().int().min(1).default(5),
+  RELAY_ALERT_FAILED_CRITICAL: z.coerce.number().int().min(1).default(10),
+  RELAY_ALERT_OLDEST_FAILED_MINUTES_WARNING: z.coerce.number().int().min(1).default(15),
+  RELAY_ALERT_OLDEST_FAILED_MINUTES_CRITICAL: z.coerce.number().int().min(1).default(60),
   ARCHITECTURE_MODE: z.enum(["WHATSAPP_PRIMARY", "WEBEX_PRIMARY"]).default("WHATSAPP_PRIMARY"),
   PHI_CHANNEL_MODE: z.enum(["WHATSAPP_AND_WEBEX", "WEBEX_ONLY"]).default("WHATSAPP_AND_WEBEX"),
   AI_TRIAGE_ENABLED: z.enum(["true", "false"]).default("false"),
@@ -44,4 +51,11 @@ if (!parsed.success) {
   process.exit(1);
 }
 
-export const env = parsed.data;
+const appEnv =
+  parsed.data.APP_ENV ??
+  (parsed.data.NODE_ENV === "production" ? "production" : parsed.data.NODE_ENV);
+
+export const env = {
+  ...parsed.data,
+  APP_ENV: appEnv
+};

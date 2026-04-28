@@ -6,6 +6,7 @@ import { app } from "../app.js";
 
 const originalDispatchMode = env.RELAY_DISPATCH_MODE;
 const originalNodeEnv = env.NODE_ENV;
+const originalAppEnv = env.APP_ENV;
 const originalAllowDevHeaderAuth = env.ALLOW_DEV_HEADER_AUTH;
 
 function adminHeaders() {
@@ -19,6 +20,7 @@ function adminHeaders() {
 afterEach(() => {
   (env as { RELAY_DISPATCH_MODE: "inline" | "queue" }).RELAY_DISPATCH_MODE = originalDispatchMode;
   (env as { NODE_ENV: "development" | "test" | "production" }).NODE_ENV = originalNodeEnv;
+  (env as { APP_ENV: "development" | "test" | "staging" | "production" }).APP_ENV = originalAppEnv;
   (env as { ALLOW_DEV_HEADER_AUTH: "true" | "false" }).ALLOW_DEV_HEADER_AUTH =
     originalAllowDevHeaderAuth;
 });
@@ -26,6 +28,7 @@ afterEach(() => {
 describe("admin relay routes", () => {
   it("blocks relay failure injection in production", async () => {
     (env as { NODE_ENV: "development" | "test" | "production" }).NODE_ENV = "production";
+    (env as { APP_ENV: "development" | "test" | "staging" | "production" }).APP_ENV = "production";
     (env as { ALLOW_DEV_HEADER_AUTH: "true" | "false" }).ALLOW_DEV_HEADER_AUTH = "false";
 
     const token = jwt.sign({ role: "ADMIN", email: "admin@test.local" }, env.JWT_SECRET, {
@@ -43,12 +46,13 @@ describe("admin relay routes", () => {
       .expect(403);
 
     expect(res.body).toMatchObject({
-      error: "Relay failure injection is disabled in production"
+      error: "Relay failure injection is disabled in staging/production"
     });
   });
 
   it("returns structured disabled response when injection requested in inline mode", async () => {
     (env as { NODE_ENV: "development" | "test" | "production" }).NODE_ENV = "test";
+    (env as { APP_ENV: "development" | "test" | "staging" | "production" }).APP_ENV = "test";
     (env as { ALLOW_DEV_HEADER_AUTH: "true" | "false" }).ALLOW_DEV_HEADER_AUTH = "true";
     (env as { RELAY_DISPATCH_MODE: "inline" | "queue" }).RELAY_DISPATCH_MODE = "inline";
 
@@ -66,6 +70,7 @@ describe("admin relay routes", () => {
 
   it("validates inject-failure request body", async () => {
     (env as { NODE_ENV: "development" | "test" | "production" }).NODE_ENV = "test";
+    (env as { APP_ENV: "development" | "test" | "staging" | "production" }).APP_ENV = "test";
     (env as { ALLOW_DEV_HEADER_AUTH: "true" | "false" }).ALLOW_DEV_HEADER_AUTH = "true";
     (env as { RELAY_DISPATCH_MODE: "inline" | "queue" }).RELAY_DISPATCH_MODE = "inline";
 
@@ -82,6 +87,7 @@ describe("admin relay routes", () => {
 
   it("returns integration readiness status", async () => {
     (env as { NODE_ENV: "development" | "test" | "production" }).NODE_ENV = "test";
+    (env as { APP_ENV: "development" | "test" | "staging" | "production" }).APP_ENV = "test";
     (env as { ALLOW_DEV_HEADER_AUTH: "true" | "false" }).ALLOW_DEV_HEADER_AUTH = "true";
 
     const res = await request(app)
@@ -116,6 +122,7 @@ describe("admin relay routes", () => {
 
   it("returns triage summary metrics", async () => {
     (env as { NODE_ENV: "development" | "test" | "production" }).NODE_ENV = "test";
+    (env as { APP_ENV: "development" | "test" | "staging" | "production" }).APP_ENV = "test";
     (env as { ALLOW_DEV_HEADER_AUTH: "true" | "false" }).ALLOW_DEV_HEADER_AUTH = "true";
 
     const res = await request(app)
@@ -147,6 +154,7 @@ describe("admin relay routes", () => {
 
   it("validates triage evaluation request body", async () => {
     (env as { NODE_ENV: "development" | "test" | "production" }).NODE_ENV = "test";
+    (env as { APP_ENV: "development" | "test" | "staging" | "production" }).APP_ENV = "test";
     (env as { ALLOW_DEV_HEADER_AUTH: "true" | "false" }).ALLOW_DEV_HEADER_AUTH = "true";
 
     const res = await request(app)
@@ -162,6 +170,7 @@ describe("admin relay routes", () => {
 
   it("validates replay-by-case request body", async () => {
     (env as { NODE_ENV: "development" | "test" | "production" }).NODE_ENV = "test";
+    (env as { APP_ENV: "development" | "test" | "staging" | "production" }).APP_ENV = "test";
     (env as { ALLOW_DEV_HEADER_AUTH: "true" | "false" }).ALLOW_DEV_HEADER_AUTH = "true";
 
     const res = await request(app)
@@ -177,6 +186,7 @@ describe("admin relay routes", () => {
 
   it("returns not found when replay case does not exist", async () => {
     (env as { NODE_ENV: "development" | "test" | "production" }).NODE_ENV = "test";
+    (env as { APP_ENV: "development" | "test" | "staging" | "production" }).APP_ENV = "test";
     (env as { ALLOW_DEV_HEADER_AUTH: "true" | "false" }).ALLOW_DEV_HEADER_AUTH = "true";
 
     const res = await request(app)
@@ -192,6 +202,7 @@ describe("admin relay routes", () => {
 
   it("validates triage filters on case list route", async () => {
     (env as { NODE_ENV: "development" | "test" | "production" }).NODE_ENV = "test";
+    (env as { APP_ENV: "development" | "test" | "staging" | "production" }).APP_ENV = "test";
     (env as { ALLOW_DEV_HEADER_AUTH: "true" | "false" }).ALLOW_DEV_HEADER_AUTH = "true";
 
     const sourceRes = await request(app)
@@ -215,6 +226,7 @@ describe("admin relay routes", () => {
 
   it("returns structured disabled response for failed relay list in inline mode", async () => {
     (env as { NODE_ENV: "development" | "test" | "production" }).NODE_ENV = "test";
+    (env as { APP_ENV: "development" | "test" | "staging" | "production" }).APP_ENV = "test";
     (env as { ALLOW_DEV_HEADER_AUTH: "true" | "false" }).ALLOW_DEV_HEADER_AUTH = "true";
     (env as { RELAY_DISPATCH_MODE: "inline" | "queue" }).RELAY_DISPATCH_MODE = "inline";
 
@@ -235,6 +247,7 @@ describe("admin relay routes", () => {
 
   it("validates failed relay list name filter", async () => {
     (env as { NODE_ENV: "development" | "test" | "production" }).NODE_ENV = "test";
+    (env as { APP_ENV: "development" | "test" | "staging" | "production" }).APP_ENV = "test";
     (env as { ALLOW_DEV_HEADER_AUTH: "true" | "false" }).ALLOW_DEV_HEADER_AUTH = "true";
 
     const res = await request(app)
@@ -249,6 +262,7 @@ describe("admin relay routes", () => {
 
   it("returns structured disabled responses for retry endpoints in inline mode", async () => {
     (env as { NODE_ENV: "development" | "test" | "production" }).NODE_ENV = "test";
+    (env as { APP_ENV: "development" | "test" | "staging" | "production" }).APP_ENV = "test";
     (env as { ALLOW_DEV_HEADER_AUTH: "true" | "false" }).ALLOW_DEV_HEADER_AUTH = "true";
     (env as { RELAY_DISPATCH_MODE: "inline" | "queue" }).RELAY_DISPATCH_MODE = "inline";
 
@@ -283,6 +297,7 @@ describe("admin relay routes", () => {
 
   it("validates retry body for relay routes", async () => {
     (env as { NODE_ENV: "development" | "test" | "production" }).NODE_ENV = "test";
+    (env as { APP_ENV: "development" | "test" | "staging" | "production" }).APP_ENV = "test";
     (env as { ALLOW_DEV_HEADER_AUTH: "true" | "false" }).ALLOW_DEV_HEADER_AUTH = "true";
     (env as { RELAY_DISPATCH_MODE: "inline" | "queue" }).RELAY_DISPATCH_MODE = "inline";
 
@@ -299,6 +314,7 @@ describe("admin relay routes", () => {
 
   it("accepts caseId in targeted retry payloads", async () => {
     (env as { NODE_ENV: "development" | "test" | "production" }).NODE_ENV = "test";
+    (env as { APP_ENV: "development" | "test" | "staging" | "production" }).APP_ENV = "test";
     (env as { ALLOW_DEV_HEADER_AUTH: "true" | "false" }).ALLOW_DEV_HEADER_AUTH = "true";
     (env as { RELAY_DISPATCH_MODE: "inline" | "queue" }).RELAY_DISPATCH_MODE = "inline";
 

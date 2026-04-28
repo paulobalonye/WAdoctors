@@ -48,6 +48,7 @@ This runs API + worker + Postgres + Redis from `docker-compose.aws-dev.yml`.
 - Idempotency persistence for webhook deliveries (already implemented).
 - Queue fallback and retries for relay dispatch (already implemented).
 - Replay and retry operations from admin portal for incident recovery.
+- Relay dead-letter alert state exposed via `GET /api/v1/admin/relay/health`.
 
 ## 5) Deploy order for dev
 

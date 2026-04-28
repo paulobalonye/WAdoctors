@@ -85,6 +85,7 @@ curl -s "http://127.0.0.1:3000/api/v1/admin/relay/health?failedLimit=50" \
 
 Expected:
 - `queueReachable: true`
+- `alertState` reflects queue risk (`warning`/`critical` when failed backlog persists, `ok` when resolved)
 - failed counts trend down after successful remediation
 
 ## 6) Cleanup (optional)

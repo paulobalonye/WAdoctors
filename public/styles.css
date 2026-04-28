@@ -245,6 +245,44 @@ tbody tr:hover {
   font-size: 12px;
 }
 
+.badge.warning {
+  border-color: #d9a24a;
+  background: #fff6e8;
+  color: #7d4f05;
+}
+
+.badge.critical {
+  border-color: #d0847a;
+  background: #fdeeee;
+  color: #8b2d21;
+}
+
+.relay-alerts {
+  display: grid;
+  gap: 6px;
+}
+
+.relay-alert-item {
+  border: 1px solid #d8e2ec;
+  border-radius: 6px;
+  background: #f9fbfd;
+  padding: 8px 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.relay-alert-item.warning {
+  border-color: #d9ba7f;
+  background: #fff8ec;
+}
+
+.relay-alert-item.critical {
+  border-color: #d79b93;
+  background: #fdf0ee;
+}
+
 .scrollbox {
   max-height: 360px;
   overflow: auto;
