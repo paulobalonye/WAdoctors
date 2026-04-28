@@ -1,4 +1,4 @@
-import { apiRequest, buildAuthHeaders, byId, escapeHtml, formatDateTime, setStatus } from "./common.js";
+import { apiRequest, byId, escapeHtml, formatDateTime, setStatus } from "./common.js";
 
 const storageKeys = {
   doctorId: "wadoctors_doctor_id",
@@ -6,7 +6,6 @@ const storageKeys = {
   doctorEmail: "wadoctors_doctor_email"
 };
 
-let doctorId = localStorage.getItem(storageKeys.doctorId) || "";
 let doctorToken = localStorage.getItem(storageKeys.doctorToken) || "";
 let selectedCaseId = "";
 let casesCache = [];
@@ -14,8 +13,6 @@ let casesCache = [];
 const doctorEmailInput = byId("doctorEmailInput");
 const doctorPasswordInput = byId("doctorPasswordInput");
 const doctorLoginBtn = byId("doctorLoginBtn");
-const doctorIdInput = byId("doctorIdInput");
-const saveDoctorSessionBtn = byId("saveDoctorSessionBtn");
 const clearDoctorSessionBtn = byId("clearDoctorSessionBtn");
 const doctorSignOutBtn = byId("doctorSignOutBtn");
 const doctorStatusBar = byId("doctorStatusBar");
@@ -33,10 +30,9 @@ const sendDoctorMessageBtn = byId("sendDoctorMessageBtn");
 const doctorCloseSummaryInput = byId("doctorCloseSummaryInput");
 const closeDoctorCaseBtn = byId("closeDoctorCaseBtn");
 
-doctorIdInput.value = doctorId;
 doctorEmailInput.value = localStorage.getItem(storageKeys.doctorEmail) || "";
 
-if (!doctorToken && !doctorId) {
+if (!doctorToken) {
   window.location.href = "/portal/doctor-login.html";
 }
 
@@ -106,14 +102,14 @@ function getCaseTriage(item) {
 }
 
 function authHeaders() {
-  if (doctorToken) {
-    return {
-      Authorization: `Bearer ${doctorToken}`,
-      "content-type": "application/json"
-    };
+  if (!doctorToken) {
+    throw new Error("Doctor login required");
   }
 
-  return buildAuthHeaders("DOCTOR", doctorId);
+  return {
+    Authorization: `Bearer ${doctorToken}`,
+    "content-type": "application/json"
+  };
 }
 
 function renderDoctorProfile(data) {
@@ -232,16 +228,14 @@ async function loginDoctor() {
   });
 
   doctorToken = response.token;
-  doctorId = response.user.id;
   localStorage.setItem(storageKeys.doctorToken, doctorToken);
-  localStorage.setItem(storageKeys.doctorId, doctorId);
+  localStorage.setItem(storageKeys.doctorId, response.user.id);
   localStorage.setItem(storageKeys.doctorEmail, email);
   doctorPasswordInput.value = "";
-  doctorIdInput.value = doctorId;
 }
 
 async function loadDoctorProfile() {
-  if (!doctorId && !doctorToken) {
+  if (!doctorToken) {
     return;
   }
 
@@ -252,7 +246,7 @@ async function loadDoctorProfile() {
 }
 
 async function loadCases() {
-  if (!doctorId && !doctorToken) {
+  if (!doctorToken) {
     return;
   }
 
@@ -283,7 +277,7 @@ async function loadCases() {
 }
 
 async function loadMessages() {
-  if ((!doctorId && !doctorToken) || !selectedCaseId) {
+  if (!doctorToken || !selectedCaseId) {
     doctorMessagesList.innerHTML = `<div class="muted">Select a case to view messages.</div>`;
     return;
   }
@@ -295,7 +289,7 @@ async function loadMessages() {
 }
 
 async function sendMessage() {
-  if ((!doctorId && !doctorToken) || !selectedCaseId) {
+  if (!doctorToken || !selectedCaseId) {
     throw new Error("Select a case first");
   }
 
@@ -316,7 +310,7 @@ async function sendMessage() {
 }
 
 async function closeCase() {
-  if ((!doctorId && !doctorToken) || !selectedCaseId) {
+  if (!doctorToken || !selectedCaseId) {
     throw new Error("Select a case first");
   }
 
@@ -333,8 +327,8 @@ async function closeCase() {
 }
 
 async function refreshAll() {
-  if (!doctorToken && !doctorId) {
-    setStatus(doctorStatusBar, "Login or enter Doctor ID to begin.", "error");
+  if (!doctorToken) {
+    setStatus(doctorStatusBar, "Login to begin.", "error");
     doctorProfile.textContent = "No profile loaded.";
     doctorCasesTableBody.innerHTML = "";
     doctorMessagesList.innerHTML = "";
@@ -345,7 +339,7 @@ async function refreshAll() {
   await loadDoctorProfile();
   await loadCases();
   await loadMessages();
-  setStatus(doctorStatusBar, doctorToken ? "Doctor portal authenticated." : "Doctor portal synced (dev mode).", "success");
+  setStatus(doctorStatusBar, "Doctor portal authenticated.", "success");
 }
 
 doctorLoginBtn.addEventListener("click", async () => {
@@ -357,29 +351,12 @@ doctorLoginBtn.addEventListener("click", async () => {
   }
 });
 
-saveDoctorSessionBtn.addEventListener("click", async () => {
-  try {
-    doctorId = doctorIdInput.value.trim();
-    if (!doctorId) {
-      throw new Error("Doctor ID is required");
-    }
-    doctorToken = "";
-    localStorage.removeItem(storageKeys.doctorToken);
-    localStorage.setItem(storageKeys.doctorId, doctorId);
-    await refreshAll();
-  } catch (error) {
-    setStatus(doctorStatusBar, error.message || "Unable to save doctor session", "error");
-  }
-});
-
 clearDoctorSessionBtn.addEventListener("click", () => {
-  doctorId = "";
   doctorToken = "";
   selectedCaseId = "";
   casesCache = [];
   localStorage.removeItem(storageKeys.doctorId);
   localStorage.removeItem(storageKeys.doctorToken);
-  doctorIdInput.value = "";
   doctorPasswordInput.value = "";
   doctorCaseTriageSourceFilter.value = "";
   doctorCaseTriageRouteFilter.value = "";
@@ -391,7 +368,6 @@ clearDoctorSessionBtn.addEventListener("click", () => {
 });
 
 doctorSignOutBtn.addEventListener("click", () => {
-  doctorId = "";
   doctorToken = "";
   selectedCaseId = "";
   casesCache = [];

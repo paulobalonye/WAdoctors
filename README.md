@@ -186,14 +186,6 @@ Primary mode:
   - Request body accepts either `role` (`ADMIN`/`DOCTOR`) or `portal` (`admin`/`doctor`).
 - Portal requests send `Authorization: Bearer <token>`.
 
-Development fallback (enabled by `ALLOW_DEV_HEADER_AUTH=true`):
-
-- `x-user-role: DOCTOR` or `x-user-role: ADMIN`
-- `x-user-id: <doctor-or-admin-id>`
-
-Safety guard:
-- Header fallback is automatically disabled when `APP_ENV=staging` or `APP_ENV=production`, even if `ALLOW_DEV_HEADER_AUTH=true`.
-
 ## Implemented in kickoff
 
 1. Signature verification for WhatsApp, Webex, and Stripe webhooks.

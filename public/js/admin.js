@@ -1,4 +1,4 @@
-import { apiRequest, buildAuthHeaders, byId, escapeHtml, formatDateTime, setStatus } from "./common.js";
+import { apiRequest, byId, escapeHtml, formatDateTime, setStatus } from "./common.js";
 
 const storageKeys = {
   adminId: "wadoctors_admin_id",
@@ -6,7 +6,6 @@ const storageKeys = {
   adminEmail: "wadoctors_admin_email"
 };
 
-let adminId = localStorage.getItem(storageKeys.adminId) || "";
 let adminToken = localStorage.getItem(storageKeys.adminToken) || "";
 let selectedCaseId = "";
 let selectedCaseStatus = "";
@@ -19,8 +18,6 @@ const relayJobNames = new Set(["PATIENT_TO_WEBEX", "DOCTOR_TO_WHATSAPP"]);
 const adminEmailInput = byId("adminEmailInput");
 const adminPasswordInput = byId("adminPasswordInput");
 const adminLoginBtn = byId("adminLoginBtn");
-const adminIdInput = byId("adminIdInput");
-const saveAdminSessionBtn = byId("saveAdminSessionBtn");
 const clearAdminSessionBtn = byId("clearAdminSessionBtn");
 const adminSignOutBtn = byId("adminSignOutBtn");
 const adminStatusBar = byId("adminStatusBar");
@@ -116,11 +113,10 @@ const adminRelayHealthNote = byId("adminRelayHealthNote");
 const adminRelayAlerts = byId("adminRelayAlerts");
 const adminRelayFailedJobsBody = byId("adminRelayFailedJobsBody");
 
-adminIdInput.value = adminId;
 adminEmailInput.value = localStorage.getItem(storageKeys.adminEmail) || "";
 adminTriageEvalState.value = "OH";
 
-if (!adminToken && !adminId) {
+if (!adminToken) {
   window.location.href = "/portal/admin-login.html";
 }
 
@@ -190,14 +186,14 @@ function getCaseTriage(item) {
 }
 
 function authHeaders() {
-  if (adminToken) {
-    return {
-      Authorization: `Bearer ${adminToken}`,
-      "content-type": "application/json"
-    };
+  if (!adminToken) {
+    throw new Error("Admin login required");
   }
 
-  return buildAuthHeaders("ADMIN", adminId);
+  return {
+    Authorization: `Bearer ${adminToken}`,
+    "content-type": "application/json"
+  };
 }
 
 function normalizeNullableInput(value) {
@@ -1392,12 +1388,10 @@ async function loginAdmin() {
   });
 
   adminToken = response.token;
-  adminId = response.user.id;
   localStorage.setItem(storageKeys.adminToken, adminToken);
-  localStorage.setItem(storageKeys.adminId, adminId);
+  localStorage.setItem(storageKeys.adminId, response.user.id);
   localStorage.setItem(storageKeys.adminEmail, email);
   adminPasswordInput.value = "";
-  adminIdInput.value = adminId;
 }
 
 async function loadOverview() {
@@ -1747,8 +1741,8 @@ async function assignSelectedCase(doctorId) {
 }
 
 async function refreshAll() {
-  if (!adminToken && !adminId) {
-    setStatus(adminStatusBar, "Login or enter Admin ID to begin.", "error");
+  if (!adminToken) {
+    setStatus(adminStatusBar, "Login to begin.", "error");
     return;
   }
 
@@ -1764,7 +1758,7 @@ async function refreshAll() {
   await loadTriageSummary();
   await loadWebhookEvents();
   await refreshRelayDashboard();
-  setStatus(adminStatusBar, adminToken ? "Admin portal authenticated." : "Admin portal synced (dev mode).", "success");
+  setStatus(adminStatusBar, "Admin portal authenticated.", "success");
 }
 
 adminLoginBtn.addEventListener("click", async () => {
@@ -1776,29 +1770,12 @@ adminLoginBtn.addEventListener("click", async () => {
   }
 });
 
-saveAdminSessionBtn.addEventListener("click", async () => {
-  try {
-    adminId = adminIdInput.value.trim();
-    if (!adminId) {
-      throw new Error("Admin ID is required");
-    }
-    adminToken = "";
-    localStorage.removeItem(storageKeys.adminToken);
-    localStorage.setItem(storageKeys.adminId, adminId);
-    await refreshAll();
-  } catch (error) {
-    setStatus(adminStatusBar, error.message || "Failed to set admin session", "error");
-  }
-});
-
 clearAdminSessionBtn.addEventListener("click", () => {
-  adminId = "";
   adminToken = "";
   selectedCaseId = "";
   selectedCaseStatus = "";
   localStorage.removeItem(storageKeys.adminId);
   localStorage.removeItem(storageKeys.adminToken);
-  adminIdInput.value = "";
   adminPasswordInput.value = "";
   adminOverviewGrid.innerHTML = "";
   adminIntegrationSummaryGrid.innerHTML = "";
@@ -1837,7 +1814,6 @@ clearAdminSessionBtn.addEventListener("click", () => {
 });
 
 adminSignOutBtn.addEventListener("click", () => {
-  adminId = "";
   adminToken = "";
   selectedCaseId = "";
   selectedCaseStatus = "";

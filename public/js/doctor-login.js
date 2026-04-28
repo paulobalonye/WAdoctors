@@ -9,20 +9,18 @@ const storageKeys = {
 const doctorEmailInput = byId("doctorEmailInput");
 const doctorPasswordInput = byId("doctorPasswordInput");
 const doctorLoginBtn = byId("doctorLoginBtn");
-const doctorIdInput = byId("doctorIdInput");
-const saveDoctorSessionBtn = byId("saveDoctorSessionBtn");
 const doctorStatusBar = byId("doctorStatusBar");
 
 function gotoDoctorPortal() {
   window.location.href = "/portal/doctor.html";
 }
 
-if (localStorage.getItem(storageKeys.doctorToken) || localStorage.getItem(storageKeys.doctorId)) {
+if (localStorage.getItem(storageKeys.doctorToken)) {
   gotoDoctorPortal();
 }
 
 doctorEmailInput.value = localStorage.getItem(storageKeys.doctorEmail) || "";
-doctorIdInput.value = localStorage.getItem(storageKeys.doctorId) || "";
+localStorage.removeItem(storageKeys.doctorId);
 
 doctorLoginBtn.addEventListener("click", async () => {
   try {
@@ -49,16 +47,4 @@ doctorLoginBtn.addEventListener("click", async () => {
   } catch (error) {
     setStatus(doctorStatusBar, error.message || "Doctor login failed", "error");
   }
-});
-
-saveDoctorSessionBtn.addEventListener("click", () => {
-  const doctorId = doctorIdInput.value.trim();
-  if (!doctorId) {
-    setStatus(doctorStatusBar, "Doctor ID is required", "error");
-    return;
-  }
-
-  localStorage.removeItem(storageKeys.doctorToken);
-  localStorage.setItem(storageKeys.doctorId, doctorId);
-  gotoDoctorPortal();
 });

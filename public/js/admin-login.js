@@ -9,20 +9,18 @@ const storageKeys = {
 const adminEmailInput = byId("adminEmailInput");
 const adminPasswordInput = byId("adminPasswordInput");
 const adminLoginBtn = byId("adminLoginBtn");
-const adminIdInput = byId("adminIdInput");
-const saveAdminSessionBtn = byId("saveAdminSessionBtn");
 const adminStatusBar = byId("adminStatusBar");
 
 function gotoAdminPortal() {
   window.location.href = "/portal/admin.html";
 }
 
-if (localStorage.getItem(storageKeys.adminToken) || localStorage.getItem(storageKeys.adminId)) {
+if (localStorage.getItem(storageKeys.adminToken)) {
   gotoAdminPortal();
 }
 
 adminEmailInput.value = localStorage.getItem(storageKeys.adminEmail) || "";
-adminIdInput.value = localStorage.getItem(storageKeys.adminId) || "";
+localStorage.removeItem(storageKeys.adminId);
 
 adminLoginBtn.addEventListener("click", async () => {
   try {
@@ -49,16 +47,4 @@ adminLoginBtn.addEventListener("click", async () => {
   } catch (error) {
     setStatus(adminStatusBar, error.message || "Admin login failed", "error");
   }
-});
-
-saveAdminSessionBtn.addEventListener("click", () => {
-  const adminId = adminIdInput.value.trim();
-  if (!adminId) {
-    setStatus(adminStatusBar, "Admin ID is required", "error");
-    return;
-  }
-
-  localStorage.removeItem(storageKeys.adminToken);
-  localStorage.setItem(storageKeys.adminId, adminId);
-  gotoAdminPortal();
 });
